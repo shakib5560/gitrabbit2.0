@@ -1,0 +1,143 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./gateway
+    ports:
+      - "${API_GATEWAY_PORT:-80}:80"
+    depends_on:
+      - auth-service
+      - ai-service
+      - blog-service
+    networks:
+      - microservices-network
+
+  # Auth Service (NestJS)
+  auth-service:
+    build:
+      context: ./services/auth
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN}
+      - PORT=3000
+    ports:
+      - "${AUTH_SERVICE_PORT:-3000}:3000"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  # AI Service (FastAPI)
+  ai-service:
+    build:
+      context: ./services/ai-service
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_URL=${AI_DATABASE_URL}
+    ports:
+      - "${AI_SERVICE_PORT:-8000}:8000"
+    depends_on:
+      ai-db:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  # Blog Service (Fastify)
+  blog-service:
+    build:
+      context: ./services/blog-service
+    environment:
+      - DATABASE_URL=${BLOG_DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=4000
+    ports:
+      - "${BLOG_SERVICE_PORT:-4000}:4000"
+    depends_on:
+      blog-postgres:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  # Auth Database (Dedicated)
+  auth-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${AUTH_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${AUTH_DB_NAME:-auth_db}
+    ports:
+      - "${AUTH_DB_PORT:-5433}:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER:-postgres} -d ${AUTH_DB_NAME:-auth_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices-network
+
+  # AI Database (Dedicated)
+  ai-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${AI_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${AI_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${AI_DB_NAME:-ai_db}
+    ports:
+      - "${AI_DB_PORT:-5434}:5432"
+    volumes:
+      - ai-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AI_DB_USER:-postgres} -d ${AI_DB_NAME:-ai_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices-network
+
+  # Blog Database (Dedicated)
+  blog-postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${BLOG_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${BLOG_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${BLOG_DB_NAME:-blog_db}
+    ports:
+      - "${BLOG_DB_PORT:-5435}:5432"
+    volumes:
+      - blog-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${BLOG_DB_USER:-postgres} -d ${BLOG_DB_NAME:-blog_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices-network
+
+  # Redis Cache / Message Broker
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    driver: bridge
+
+volumes:
+  auth-db-data:
+  ai-db-data:
+  blog-db-data:
+  redis-data:
