@@ -17,7 +17,8 @@ model User {
   id            String         @id @default(uuid())
   name          String
   email         String         @unique
-  password      String
+  password      String?
+  githubId      String?        @unique
   role          Role           @default(USER)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
