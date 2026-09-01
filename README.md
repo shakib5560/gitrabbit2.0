@@ -63,9 +63,9 @@ Responsible for authentication, user management, and real-time communication. Au
 | WebSocket connection/disconnection handling | ✅ |
 | `ping` → `pong` WebSocket event | ✅ |
 | Prisma auto-migration on container start | ✅ |
-| JWT authentication endpoints | 🚧 In progress |
-| Refresh token rotation | 🚧 In progress |
-| Guards / RBAC enforcement | 🚧 In progress |
+| JWT authentication endpoints | ✅ |
+| Refresh token rotation | ✅ |
+| Guards / RBAC enforcement | ✅ |
 | WebSocket authentication guards | 🚧 In progress |
 
 **Database Schema:**
@@ -512,10 +512,10 @@ DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5434/ai_db" alemb
 - [x] WebSocket Gateway (Socket.IO)
 - [x] Connection / disconnection handling
 - [x] Prisma migration on startup
-- [ ] Login / register endpoints
-- [ ] JWT issuance and validation
-- [ ] Refresh token rotation
-- [ ] RBAC guards
+- [x] Login / register endpoints
+- [x] JWT issuance and validation
+- [x] Refresh token rotation
+- [x] RBAC guards
 - [ ] WebSocket authentication
 
 ### AI / LLM Service
