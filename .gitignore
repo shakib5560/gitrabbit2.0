@@ -37,3 +37,11 @@ logs/
 
 # MacOS
 .DS_Store
+
+# Agent intermediates and credentials (AGENTS.md)
+.tmp/
+credentials.json
+token.json
+scratch/
+Workflow_Skills/
+

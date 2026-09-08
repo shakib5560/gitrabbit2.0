@@ -1,98 +1,105 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# GitRabbit Auth & Realtime Service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Production-ready Authentication, User Identity, and Realtime WebSocket service built with NestJS, Prisma ORM, and PostgreSQL.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Features
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **User Authentication**: Secure email/password registration and authentication with `bcrypt` password hashing.
+- **JWT & Token Lifecycle**: Short-lived JWT access tokens with secure refresh token rotation and cookie persistence.
+- **GitHub OAuth 2.0**: Seamless social login linking or provisioning user accounts automatically.
+- **Role-Based Access Control (RBAC)**: Enum-based role authorization (`USER`, `ADMIN`) with NestJS guards.
+- **Realtime Gateway**: Built-in Socket.IO gateway with connection handling and ping/pong events.
+- **Interactive OpenAPI / Swagger Documentation**: Full OpenAPI 3.0 specification available at `/docs` with Swagger UI.
+- **Automated Database Migrations**: Self-applying Prisma migrations running against isolated `auth_db`.
+- **E2E Testing Suite**: Comprehensive end-to-end test coverage with Jest and Supertest.
 
-## Project setup
+---
 
-```bash
-$ npm install
-```
+## Tech Stack
 
-## Compile and run the project
+- **Framework**: NestJS v11
+- **Language**: TypeScript v5
+- **ORM**: Prisma v5
+- **Database**: PostgreSQL 15 (`auth_db`, port `5433` local / `5432` container)
+- **Realtime**: Socket.IO / `@nestjs/platform-socket.io`
+- **Documentation**: `@nestjs/swagger` (Swagger UI)
+- **Validation**: `class-validator` & `class-transformer`
 
-```bash
-# development
-$ npm run start
+---
 
-# watch mode
-$ npm run start:dev
+## Prerequisites
 
-# production mode
-$ npm run start:prod
-```
+- [Node.js](https://nodejs.org/) v20+
+- [PostgreSQL](https://www.postgresql.org/) v15+ (or run via Docker Compose)
+- `npm` v10+
 
-## Run tests
+---
 
-```bash
-# unit tests
-$ npm run test
+## Configuration
 
-# e2e tests
-$ npm run test:e2e
+The service reads configuration from environment variables (or `.env` in the repository root / service directory):
 
-# test coverage
-$ npm run test:cov
-```
+| Variable | Description | Default / Example |
+|---|---|---|
+| `PORT` | HTTP server port | `3000` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5433/auth_db` |
+| `JWT_SECRET` / `JWT_ACCESS_SECRET` | Secret key for signing access tokens | `super_secret_jwt_key` |
+| `JWT_REFRESH_SECRET` | Secret key for signing refresh tokens | `super_secret_refresh_key` |
+| `GITHUB_CLIENT_ID` | GitHub OAuth application Client ID | `your_github_client_id` |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth application Client Secret | `your_github_client_secret` |
+| `GITHUB_CALLBACK_URL` | GitHub OAuth redirect URI | `http://localhost:3000/auth/github/callback` |
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Installation & Running
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Install dependencies
+npm install
+
+# Run database migrations
+npx prisma migrate dev
+
+# Start development server with hot-reload
+npm run start:dev
+
+# Start production build
+npm run build
+npm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+## API Endpoints
 
-Check out a few resources that may come in handy when working with NestJS:
+Interactive Swagger documentation is available at **`http://localhost:3000/docs`** (or via gateway at `http://localhost/api/auth/docs`).
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/` | Service health status | No |
+| `POST` | `/auth/register` | Register new user account | No |
+| `POST` | `/auth/login` | Authenticate user & receive access token + refresh cookie | No |
+| `POST` | `/auth/refresh` | Rotate refresh token and issue new access token | Refresh Cookie |
+| `POST` | `/auth/logout` | Revoke refresh token and invalidate cookie | Yes (Bearer JWT) |
+| `GET` | `/auth/github` | Initiate GitHub OAuth 2.0 flow | No |
+| `GET` | `/auth/github/callback` | GitHub OAuth redirect and authentication handler | No |
+| `GET` | `/auth/me` | Retrieve authenticated user profile claims | Yes (Bearer JWT) |
+| `GET` | `/docs` | Interactive Swagger / OpenAPI documentation UI | No |
+| `GET` | `/docs-json` | OpenAPI 3.0 specification JSON | No |
 
-## Support
+---
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Testing
 
-## Stay in touch
+```bash
+# Run unit tests
+npm run test
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+# Run end-to-end integration tests
+npm run test:e2e
 
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+# Run test coverage
+npm run test:cov
+```

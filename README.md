@@ -66,7 +66,11 @@ Responsible for authentication, user management, and real-time communication. Au
 | JWT authentication endpoints | ✅ |
 | Refresh token rotation | ✅ |
 | Guards / RBAC enforcement | ✅ |
+| GitHub OAuth 2.0 integration | ✅ |
+| Interactive OpenAPI / Swagger UI (`/docs`) | ✅ |
+| End-to-End test suite (Jest) | ✅ |
 | WebSocket authentication guards | 🚧 In progress |
+
 
 **Database Schema:**
 ```prisma
@@ -119,25 +123,33 @@ JWT tokens issued by the Auth Service are verified locally by the Blog Service u
 
 | Feature | Status |
 |---|---|
-| Fastify application bootstrap | ✅ |
+| Fastify application bootstrap & clean modular architecture | ✅ |
 | Prisma integration with `blog_db` | ✅ |
-| `Post` model (id, authorId, title, slug, content, excerpt, published, timestamps) | ✅ |
-| `Category` model with M2M relation to Posts | ✅ |
-| `Tag` model with M2M relation to Posts | ✅ |
-| `Comment` model (id, postId, authorId, content, timestamps) | ✅ |
+| `Post` model (SEO fields, views count, featured flag, authorId) | ✅ |
+| `Category` model with unique slugs & post counts | ✅ |
+| `Tag` model with unique slugs & post counts | ✅ |
+| `Comment` model (id, postId, authorId, content) | ✅ |
 | `@fastify/jwt` registered for token verification | ✅ |
-| `authenticate` decorator for protected routes | ✅ |
+| `jwtGuard` and RBAC authorization guards (`ADMIN`, author ownership) | ✅ |
 | `/health` endpoint with database ping | ✅ |
 | Prisma auto-migration on container start | ✅ |
-| CRUD endpoints for Posts | 🚧 In progress |
+| Database seeder script (`npm run seed`) | ✅ |
+| CRUD endpoints for Posts (pagination, search, filters) | ✅ |
+| Automated unique slug generation (`slugify`) | ✅ |
+| View counter analytics (auto-increment on read) | ✅ |
+| Category / Tag management endpoints | ✅ |
+| Interactive OpenAPI / Swagger UI (`/docs`) | ✅ |
+| Unit & integration test suites (Jest) | ✅ |
+| Standalone E2E verification test runner | ✅ |
 | CRUD endpoints for Comments | 🚧 In progress |
-| Category / Tag management endpoints | 🚧 In progress |
 
 **Database Schema:**
 ```prisma
-Post     → id, authorId, title, slug, content, excerpt, published, createdAt, updatedAt
-Category → id, name ↔ Post (M2M)
-Tag      → id, name ↔ Post (M2M)
+Post     → id, authorId, title, slug, content, excerpt, published, featured, views,
+            metaTitle, metaDescription, canonicalUrl, featuredImage, ogTitle, ogDescription, ogImage,
+            createdAt, updatedAt
+Category → id, name, slug, description, createdAt, updatedAt ↔ Post (M2M)
+Tag      → id, name, slug, createdAt, updatedAt ↔ Post (M2M)
 Comment  → id, postId, authorId, content, createdAt, updatedAt
 ```
 
@@ -259,13 +271,17 @@ backend-v2/
 ├── services/
 │   ├── auth/                # Auth + Realtime service (NestJS)
 │   │   ├── prisma/
-│   │   │   └── schema.prisma
+│   │   │   ├── migrations/  # Database migrations
+│   │   │   └── schema.prisma# Auth models (User, RefreshToken)
 │   │   ├── src/
+│   │   │   ├── auth/        # Auth controller, service, strategies, guards, DTOs
 │   │   │   ├── prisma/      # PrismaService / PrismaModule
 │   │   │   ├── websocket/   # WebSocket gateway, service, module
 │   │   │   ├── app.module.ts
-│   │   │   └── main.ts
+│   │   │   └── main.ts      # Bootstrap & Swagger UI setup
+│   │   ├── test/            # Unit & E2E integration test suites
 │   │   ├── Dockerfile
+│   │   ├── README.md
 │   │   └── package.json
 │   │
 │   ├── ai-service/          # AI / LLM service (FastAPI)
@@ -283,10 +299,20 @@ backend-v2/
 │   │
 │   └── blog-service/        # Blog service (Fastify + TypeScript)
 │       ├── prisma/
-│       │   └── schema.prisma
+│       │   ├── migrations/  # Database migrations
+│       │   ├── schema.prisma# Post (SEO/views), Category, Tag, Comment models
+│       │   └── seed.ts      # Database seed script for demo data
 │       ├── src/
-│       │   └── server.ts
+│       │   ├── app.ts       # Fastify factory with Swagger & error handling
+│       │   ├── server.ts    # Application entry point & graceful shutdown
+│       │   ├── auth/        # JWT verification & RBAC guards
+│       │   ├── common/      # AppError, shared types, slugify, pagination
+│       │   ├── config/      # Environment variable validation
+│       │   ├── database/    # Prisma client singleton
+│       │   └── modules/     # Posts, Categories, Tags (routes, controllers, services, schemas)
+│       ├── test/            # Jest unit/integration tests & E2E runner
 │       ├── Dockerfile
+│       ├── README.md
 │       └── package.json
 │
 ├── docker-compose.yml       # Full stack orchestration
@@ -343,17 +369,18 @@ Extracts user ID → uses as authorId / user_id reference
 
 | Mechanism | Status | Notes |
 |---|---|---|
-| `bcrypt` password hashing | ✅ | Dependency installed in Auth Service |
-| JWT access tokens | 🚧 | Infrastructure in place, endpoint logic in progress |
-| JWT refresh tokens | 🚧 | Schema and model defined, rotation logic in progress |
-| Role enum (`USER`, `ADMIN`) | ✅ | Defined in Prisma schema |
-| RBAC enforcement | 🚧 | Planned via NestJS Guards |
+| `bcrypt` password hashing | ✅ | Active in Auth Service |
+| JWT access tokens | ✅ | Signed by Auth Service, verified cross-service |
+| JWT refresh tokens | ✅ | Secure HTTP-only cookies, rotation & revocation |
+| Role enum (`USER`, `ADMIN`) | ✅ | Defined in Prisma schemas |
+| RBAC enforcement | ✅ | Guards in NestJS (Auth) and Fastify (Blog) |
 | Database isolation per service | ✅ | Each service has its own DB |
-| CORS | ✅ | WebSocket gateway allows all origins (dev config) |
-| Secrets via environment variables | ✅ | No secrets in source code |
+| CORS | ✅ | Handled at API Gateway and service levels |
+| Secrets via environment variables | ✅ | Injected via `.env` / Docker Compose |
+| Interactive Swagger Documentation | ✅ | OpenAPI 3.0 at `/docs` on Auth (:3000) and Blog (:4000) |
+| Input validation | ✅ | class-validator (Auth), Fastify schemas (Blog), Pydantic (AI) |
 | WebSocket authentication | 🚧 | Connection handler stub in place |
 | Rate limiting | ⏳ | Not yet implemented |
-| Input validation | 🚧 | Pydantic in AI service; not yet on Auth/Blog |
 
 > **Important:** Never commit `.env` files or real credentials to version control. Use `.env.example` as the template and create a `.env` locally.
 
@@ -361,15 +388,47 @@ Extracts user ID → uses as authorId / user_id reference
 
 ## Available Endpoints
 
-### Auth Service (`/api/auth`)
+### Auth Service (`/api/auth` or `http://localhost:3000`)
 
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
-| `GET` | `/` | Service hello check | No |
+| `GET` | `/` | Service health status | No |
+| `POST` | `/auth/register` | Register new user account | No |
+| `POST` | `/auth/login` | Authenticate with email/password; returns JWT + sets Refresh cookie | No |
+| `POST` | `/auth/refresh` | Rotate refresh token and issue new access token | Refresh Cookie |
+| `POST` | `/auth/logout` | Invalidate refresh token and clear cookie | Bearer JWT |
+| `GET` | `/auth/github` | Initiate GitHub OAuth 2.0 flow | No |
+| `GET` | `/auth/github/callback` | Handle GitHub OAuth callback and token issuance | No |
+| `GET` | `/auth/me` | Retrieve authenticated user profile claims | Bearer JWT |
+| `GET` | `/docs` | Interactive Swagger / OpenAPI documentation UI | No |
+| `GET` | `/docs-json` | OpenAPI 3.0 specification JSON | No |
 
-> 🚧 Login, register, refresh token, and user management endpoints are in progress.
+### Blog Service (`/api/blog` or `http://localhost:4000`)
 
-### AI Service (`/api/ai`)
+| Method | Path | Purpose | Auth |
+|---|---|---|---|
+| `GET` | `/posts` | List posts with pagination (`page`, `limit`), search, and filters (`category`, `tag`, `published`, `featured`) | No |
+| `GET` | `/posts/feed` | List published posts ordered chronologically | No |
+| `GET` | `/posts/slug/:slug` | Retrieve single published post by slug (increments view counter) | No |
+| `GET` | `/posts/:id` | Retrieve single post by ID (increments views if published) | No |
+| `POST` | `/posts` | Create new post (generates unique slug, attaches categories/tags, optional SEO fields) | Bearer JWT |
+| `PUT` | `/posts/:id` | Update post details, categories, tags, or SEO metadata | Author or ADMIN |
+| `DELETE` | `/posts/:id` | Permanently delete post | Author or ADMIN |
+| `GET` | `/categories` | List all categories with post count aggregation | No |
+| `GET` | `/categories/:idOrSlug` | Retrieve category details and its posts | No |
+| `POST` | `/categories` | Create new category (generates unique slug) | ADMIN |
+| `PUT` | `/categories/:id` | Update category name and description | ADMIN |
+| `DELETE` | `/categories/:id` | Delete category | ADMIN |
+| `GET` | `/tags` | List all tags with post count aggregation | No |
+| `GET` | `/tags/:idOrSlug` | Retrieve tag details and its posts | No |
+| `POST` | `/tags` | Create new tag (generates unique slug) | ADMIN |
+| `PUT` | `/tags/:id` | Update tag name | ADMIN |
+| `DELETE` | `/tags/:id` | Delete tag | ADMIN |
+| `GET` | `/health` | Health check + database connectivity ping | No |
+| `GET` | `/docs` | Interactive Swagger / OpenAPI documentation UI | No |
+| `GET` | `/docs/json` | OpenAPI 3.0 specification JSON | No |
+
+### AI Service (`/api/ai` or `http://localhost:8000`)
 
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
@@ -377,14 +436,6 @@ Extracts user ID → uses as authorId / user_id reference
 | `GET` | `/api/status` | Service status | No |
 
 > 🚧 LLM completion, conversation history, and message endpoints are in progress.
-
-### Blog Service (`/api/blog`)
-
-| Method | Path | Purpose | Auth |
-|---|---|---|---|
-| `GET` | `/health` | Health check + DB ping | No |
-
-> 🚧 Post, comment, category, and tag CRUD endpoints are in progress.
 
 ### WebSocket (`/socket.io`)
 
@@ -464,7 +515,24 @@ DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5434/ai_db" uvico
 ```bash
 cd services/blog-service
 npm install
-DATABASE_URL="postgresql://postgres:postgres@localhost:5435/blog_db" npm run dev
+DATABASE_URL="postgresql://postgres:postgres@localhost:5435/blog_db" npm run seed  # Seed categories, tags & posts
+DATABASE_URL="postgresql://postgres:postgres@localhost:5435/blog_db" npm run dev   # Start dev server
+```
+
+### Running Tests
+
+**Auth Service:**
+```bash
+cd services/auth
+npm run test        # Unit tests
+npm run test:e2e    # End-to-end integration tests (Jest)
+```
+
+**Blog Service:**
+```bash
+cd services/blog-service
+npm run test        # Jest unit & integration tests
+npm run test:e2e    # Standalone E2E API verification runner
 ```
 
 ### Database Migrations (Manual)
@@ -515,6 +583,9 @@ DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5434/ai_db" alemb
 - [x] Login / register endpoints
 - [x] JWT issuance and validation
 - [x] Refresh token rotation
+- [x] GitHub OAuth 2.0 integration
+- [x] Interactive OpenAPI / Swagger UI (`/docs`)
+- [x] End-to-end test suite (Jest)
 - [x] RBAC guards
 - [ ] WebSocket authentication
 
@@ -530,16 +601,21 @@ DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5434/ai_db" alemb
 - [ ] Token usage tracking
 
 ### Blog Service
-- [x] Fastify application
+- [x] Fastify application & clean modular structure
 - [x] Prisma ORM integration
 - [x] `Post`, `Category`, `Tag`, `Comment` models
-- [x] `@fastify/jwt` registered
-- [x] `authenticate` decorator
+- [x] SEO metadata, auto-slugs (`slugify`), view counts, featured flags
+- [x] `@fastify/jwt` registered for token verification
+- [x] `jwtGuard` and RBAC guards (`ADMIN`, author ownership)
 - [x] `/health` endpoint with DB ping
 - [x] Prisma migration on startup
-- [ ] Post CRUD endpoints
+- [x] Database seeder (`npm run seed`)
+- [x] Post CRUD endpoints (pagination, search, filter, slug lookup)
+- [x] Category / Tag management with post count aggregation
+- [x] Interactive OpenAPI / Swagger UI (`/docs`)
+- [x] Unit & integration test suites (Jest)
+- [x] Standalone E2E verification test runner
 - [ ] Comment CRUD endpoints
-- [ ] Category / Tag management
 
 ### Architecture
 - [x] Database-per-service isolation
