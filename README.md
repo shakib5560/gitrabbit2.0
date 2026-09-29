@@ -4,6 +4,11 @@ A microservices-based backend built for scalability, isolation, and independent 
 
 ---
 
+> [!NOTE]
+> **AI Service**
+>
+> The `ai-service` source code is maintained in a private repository and is intentionally not included here.
+
 ## Architecture Overview
 
 ```mermaid
