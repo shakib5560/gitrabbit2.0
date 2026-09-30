@@ -13,16 +13,26 @@ enum Role {
   ADMIN
 }
 
+enum TokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
 model User {
-  id            String         @id @default(uuid())
-  name          String
-  email         String         @unique
-  password      String?
-  githubId      String?        @unique
-  role          Role           @default(USER)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  refreshTokens RefreshToken[]
+  id                 String              @id @default(uuid())
+  name               String
+  email              String              @unique
+  password           String?
+  avatarUrl          String?
+  githubId           String?             @unique
+  role               Role                @default(USER)
+  isEmailVerified    Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  refreshTokens      RefreshToken[]
+  verificationTokens VerificationToken[]
+  messages           ChatMessage[]
+  reactions          ChatReaction[]
 }
 
 model RefreshToken {
@@ -32,4 +42,48 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  type      TokenType
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  @@index([userId, type])
+}
+
+model ChatMessage {
+  id        String         @id @default(uuid())
+  channelId String         @default("general")
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  type      String         @default("text") // "text" | "system" | "ai-alert"
+  isPinned  Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  reactions ChatReaction[]
+
+  @@index([channelId, createdAt])
+  @@index([userId])
+}
+
+model ChatReaction {
+  id        String      @id @default(uuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime    @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@index([userId])
 }

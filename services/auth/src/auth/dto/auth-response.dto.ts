@@ -19,6 +19,18 @@ export class UserResponseDto {
     example: 'jane.doe@example.com',
   })
   email: string;
+
+  @ApiPropertyOptional({
+    description: 'Avatar image URL',
+    example: 'https://avatars.githubusercontent.com/u/1234567?v=4',
+  })
+  avatarUrl?: string | null;
+
+  @ApiProperty({
+    description: 'Whether the user email has been verified',
+    example: false,
+  })
+  isEmailVerified: boolean;
 }
 
 export class AuthResponseDto {
@@ -57,12 +69,51 @@ export class UserProfileDto {
   })
   email: string;
 
+  @ApiPropertyOptional({
+    description: 'Full name of the user',
+    example: 'Jane Doe',
+  })
+  name?: string;
+
+  @ApiPropertyOptional({
+    description: 'Avatar image URL',
+    example: 'https://avatars.githubusercontent.com/u/1234567?v=4',
+  })
+  avatarUrl?: string | null;
+
+  @ApiProperty({
+    description: 'Whether the user email has been verified',
+    example: false,
+  })
+  isEmailVerified: boolean;
+
   @ApiProperty({
     description: 'User access role',
     enum: Role,
     example: Role.USER,
   })
   role: Role;
+}
+
+export class VerifyTokenResponseDto {
+  @ApiProperty({
+    description: 'Whether the token is valid and authorized',
+    example: true,
+  })
+  valid: boolean;
+
+  @ApiPropertyOptional({
+    description: 'User access role',
+    enum: Role,
+    example: Role.ADMIN,
+  })
+  role?: Role;
+
+  @ApiPropertyOptional({
+    description: 'Current user profile information',
+    type: () => UserProfileDto,
+  })
+  user?: UserProfileDto;
 }
 
 export class MessageResponseDto {

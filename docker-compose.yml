@@ -24,11 +24,14 @@ services:
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - PORT=3000
     ports:
       - "${AUTH_SERVICE_PORT:-3000}:3000"
     depends_on:
       auth-db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - microservices-network
@@ -123,13 +126,19 @@ services:
     networks:
       - microservices-network
 
-  # Redis Cache / Message Broker
+  # Redis Cache / Message Broker (Self-Hosted on EC2)
   redis:
     image: redis:7-alpine
+    command: redis-server --appendonly yes
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     networks:
       - microservices-network
 
