@@ -79,7 +79,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL:-${AUTH_DATABASE_URL}}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-${JWT_SECRET}}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-25m}
