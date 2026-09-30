@@ -58,12 +58,12 @@ jobs:
 
           if [ "$FORCE_ROLLBACK" = "true" ]; then
             echo "⚠️ Executing automated rollback on remote EC2 host..."
-            ssh -p $EC2_PORT $EC2_USER@$EC2_HOST << 'EOF'
+            ssh -p $EC2_PORT $EC2_USER@$EC2_HOST << EOF
               set -e
               cd $TARGET_DIR
               chmod +x scripts/*.sh
               ./scripts/rollback.sh
-            EOF
+          EOF
           else
             # Sync .env.production from GitHub Secrets if provided
             if [ -n "$PROD_ENV_CONTENT" ]; then
@@ -82,12 +82,12 @@ jobs:
               ./ $EC2_USER@$EC2_HOST:$TARGET_DIR/
 
             echo "🐳 Running Production Zero-Downtime Deployment..."
-            ssh -p $EC2_PORT $EC2_USER@$EC2_HOST << 'EOF'
+            ssh -p $EC2_PORT $EC2_USER@$EC2_HOST << EOF
               set -e
               cd $TARGET_DIR
               chmod +x scripts/*.sh scripts/*.py
               ./scripts/deploy.sh
-            EOF
+          EOF
           fi
 
       - name: Post-Deployment Verification Probe
