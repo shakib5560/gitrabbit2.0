@@ -36,7 +36,7 @@ import {
   MessageResponseDto,
   ErrorResponseDto,
 } from './dto/auth-response.dto';
-import type { Request, Response } from 'express';
+import type { Request, Response, CookieOptions } from 'express';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { GithubOauthGuard } from './guards/github-oauth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -46,13 +46,14 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  private getCookieOptions() {
+  private getCookieOptions(): CookieOptions {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const sameSite: 'none' | 'lax' = isProduction ? 'none' : 'lax';
+
     return {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as
-        | 'none'
-        | 'lax',
+      secure: isProduction,
+      sameSite,
       maxAge: 30 * 24 * 60 * 60 * 1000,
     };
   }
