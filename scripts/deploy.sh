@@ -12,7 +12,7 @@ cd "$PROJECT_ROOT"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-.env.production}"
 HEALTHCHECK_TIMEOUT="${HEALTHCHECK_TIMEOUT:-120}"
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/deploy-snapshots}"
+BACKUP_DIR="${BACKUP_DIR:-${PROJECT_ROOT}/.deploy-snapshots}"
 ROLLBACK_TAG="rollback-latest"
 
 RED='\033[0;31m'
@@ -69,6 +69,7 @@ fi
 # 2. Database Safety Snapshot
 log_info "Step 2/8: Capturing pre-deployment database snapshots..."
 mkdir -p "$BACKUP_DIR"
+chmod 750 "$BACKUP_DIR" 2>/dev/null || true
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 capture_db_snapshot() {

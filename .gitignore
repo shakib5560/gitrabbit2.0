@@ -44,4 +44,5 @@ credentials.json
 token.json
 scratch/
 Workflow_Skills/
+.deploy-snapshots/
 

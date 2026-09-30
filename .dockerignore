@@ -41,6 +41,7 @@ htmlcov/
 scratch/
 tmp/
 temp/
+.deploy-snapshots/
 
 # IDE & OS
 .DS_Store
