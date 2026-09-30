@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import Redis from 'ioredis';
 
 @Injectable()
@@ -22,7 +27,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.client.on('ready', () => {
-      this.logger.log(`Redis connected and ready at ${this.redisUrl.replace(/:[^:]*@/, ':***@')}`);
+      this.logger.log(
+        `Redis connected and ready at ${this.redisUrl.replace(/:[^:]*@/, ':***@')}`,
+      );
     });
 
     this.client.on('error', (err) => {
@@ -35,7 +42,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       const pong = await this.client.ping();
       this.logger.log(`Redis health check passed: ${pong}`);
     } catch (err: any) {
-      this.logger.warn(`Initial Redis ping failed: ${err.message}. Will retry automatically.`);
+      this.logger.warn(
+        `Initial Redis ping failed: ${err.message}. Will retry automatically.`,
+      );
     }
   }
 
@@ -90,7 +99,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   /**
    * Blacklist a token identifier (e.g. SHA-256 hash of access token or JTI)
    */
-  async blacklistToken(tokenIdentifier: string, ttlSeconds: number): Promise<void> {
+  async blacklistToken(
+    tokenIdentifier: string,
+    ttlSeconds: number,
+  ): Promise<void> {
     if (ttlSeconds <= 0) return;
     const key = `blacklist:token:${tokenIdentifier}`;
     await this.client.set(key, '1', 'EX', ttlSeconds);
@@ -117,7 +129,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async setCachedUserProfile(userId: string, profile: any, ttlSeconds = 900): Promise<void> {
+  async setCachedUserProfile(
+    userId: string,
+    profile: any,
+    ttlSeconds = 900,
+  ): Promise<void> {
     const key = `cache:user:${userId}`;
     await this.client.set(key, JSON.stringify(profile), 'EX', ttlSeconds);
   }

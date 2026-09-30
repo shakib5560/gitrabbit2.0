@@ -15,13 +15,18 @@ export class WebsocketExceptionsFilter extends BaseWsExceptionFilter {
           ? exception.message
           : 'Internal WebSocket error';
 
-    this.logger.error(`WebSocket error for client ${client.id}: ${JSON.stringify(error)}`);
+    this.logger.error(
+      `WebSocket error for client ${client.id}: ${JSON.stringify(error)}`,
+    );
 
     client.emit('error', {
       event: 'error',
       statusCode: 400,
       timestamp: new Date().toISOString(),
-      message: typeof error === 'string' ? error : (error as any)?.message || 'An error occurred',
+      message:
+        typeof error === 'string'
+          ? error
+          : (error as any)?.message || 'An error occurred',
     });
   }
 }

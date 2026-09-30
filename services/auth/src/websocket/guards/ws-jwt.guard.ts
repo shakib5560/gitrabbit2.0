@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, Logger } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Socket } from 'socket.io';
 import { RedisService } from '../../redis/redis.service';
@@ -23,15 +28,20 @@ export class WsJwtGuard implements CanActivate {
       (client.handshake?.query?.token as string);
 
     if (!token) {
-      this.logger.warn(`WS connection rejected: No authentication token provided (Socket: ${client.id})`);
+      this.logger.warn(
+        `WS connection rejected: No authentication token provided (Socket: ${client.id})`,
+      );
       return false;
     }
 
     try {
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-      const isBlacklisted = await this.redisService.isTokenBlacklisted(tokenHash);
+      const isBlacklisted =
+        await this.redisService.isTokenBlacklisted(tokenHash);
       if (isBlacklisted) {
-        this.logger.warn(`WS connection rejected: Token revoked (Socket: ${client.id})`);
+        this.logger.warn(
+          `WS connection rejected: Token revoked (Socket: ${client.id})`,
+        );
         return false;
       }
 
@@ -49,7 +59,9 @@ export class WsJwtGuard implements CanActivate {
       };
       return true;
     } catch (err: any) {
-      this.logger.warn(`WS connection token verification failed (Socket: ${client.id}): ${err?.message}`);
+      this.logger.warn(
+        `WS connection token verification failed (Socket: ${client.id}): ${err?.message}`,
+      );
       return false;
     }
   }

@@ -30,7 +30,11 @@ export class AuthService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  async createAndSendVerificationToken(userId: string, email: string, name: string) {
+  async createAndSendVerificationToken(
+    userId: string,
+    email: string,
+    name: string,
+  ) {
     await this.prisma.verificationToken.deleteMany({
       where: { userId, type: TokenType.EMAIL_VERIFICATION },
     });
@@ -71,9 +75,17 @@ export class AuthService {
       },
     });
 
-    await this.createAndSendVerificationToken(newUser.id, newUser.email, newUser.name);
+    await this.createAndSendVerificationToken(
+      newUser.id,
+      newUser.email,
+      newUser.name,
+    );
 
-    const tokens = await this.getTokens(newUser.id, newUser.email, newUser.role);
+    const tokens = await this.getTokens(
+      newUser.id,
+      newUser.email,
+      newUser.role,
+    );
     await this.updateRefreshToken(newUser.id, tokens.refreshToken);
     return {
       ...tokens,
@@ -117,14 +129,17 @@ export class AuthService {
 
   async validateOAuthLogin(profile: any) {
     const { id, emails, displayName, photos } = profile;
-    const email = emails && emails.length > 0 ? emails[0].value.toLowerCase().trim() : null;
+    const email =
+      emails && emails.length > 0 ? emails[0].value.toLowerCase().trim() : null;
     const avatarUrl =
       photos && photos.length > 0
         ? photos[0].value
         : profile._json?.avatar_url || null;
 
     if (!email) {
-      throw new BadRequestException('GitHub account has no public or verified email address');
+      throw new BadRequestException(
+        'GitHub account has no public or verified email address',
+      );
     }
 
     let user = await this.prisma.user.findUnique({
@@ -178,9 +193,13 @@ export class AuthService {
 
     if (!tokenRecord || new Date() > tokenRecord.expiresAt) {
       if (tokenRecord) {
-        await this.prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
+        await this.prisma.refreshToken.delete({
+          where: { id: tokenRecord.id },
+        });
       }
-      throw new ForbiddenException('Access Denied: Invalid or expired refresh token');
+      throw new ForbiddenException(
+        'Access Denied: Invalid or expired refresh token',
+      );
     }
 
     // Revoke previous token before issuing a new one (Token Rotation)
@@ -218,7 +237,10 @@ export class AuthService {
     });
 
     if (!user) {
-      return { message: 'If this email is registered, a verification link has been sent.' };
+      return {
+        message:
+          'If this email is registered, a verification link has been sent.',
+      };
     }
 
     if (user.isEmailVerified) {
@@ -241,7 +263,9 @@ export class AuthService {
       new Date() > tokenRecord.expiresAt
     ) {
       if (tokenRecord) {
-        await this.prisma.verificationToken.delete({ where: { id: tokenRecord.id } });
+        await this.prisma.verificationToken.delete({
+          where: { id: tokenRecord.id },
+        });
       }
       throw new BadRequestException('Invalid or expired verification token');
     }
@@ -267,7 +291,10 @@ export class AuthService {
     });
 
     if (!user) {
-      return { message: 'If this email is registered, a password reset link has been sent.' };
+      return {
+        message:
+          'If this email is registered, a password reset link has been sent.',
+      };
     }
 
     await this.prisma.verificationToken.deleteMany({
@@ -290,7 +317,10 @@ export class AuthService {
       .sendPasswordResetEmail(user.email, user.name, token)
       .catch((err) => this.mailService['logger']?.error?.(err));
 
-    return { message: 'If this email is registered, a password reset link has been sent.' };
+    return {
+      message:
+        'If this email is registered, a password reset link has been sent.',
+    };
   }
 
   async resetPassword(dto: ResetPasswordDto) {
@@ -304,7 +334,9 @@ export class AuthService {
       new Date() > tokenRecord.expiresAt
     ) {
       if (tokenRecord) {
-        await this.prisma.verificationToken.delete({ where: { id: tokenRecord.id } });
+        await this.prisma.verificationToken.delete({
+          where: { id: tokenRecord.id },
+        });
       }
       throw new BadRequestException('Invalid or expired password reset token');
     }
@@ -331,7 +363,8 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'Password has been reset successfully. Please log in with your new password.',
+      message:
+        'Password has been reset successfully. Please log in with your new password.',
     };
   }
 
@@ -347,7 +380,8 @@ export class AuthService {
     }
 
     return {
-      message: 'If this email is registered, your username/account details have been sent.',
+      message:
+        'If this email is registered, your username/account details have been sent.',
     };
   }
 
@@ -365,7 +399,9 @@ export class AuthService {
         where: { email: dto.email.toLowerCase().trim() },
       });
       if (emailExists) {
-        throw new BadRequestException('Email is already registered by another user');
+        throw new BadRequestException(
+          'Email is already registered by another user',
+        );
       }
     }
 
@@ -420,7 +456,8 @@ export class AuthService {
   async verifyToken(token: string) {
     try {
       const tokenHash = this.hashToken(token);
-      const isBlacklisted = await this.redisService.isTokenBlacklisted(tokenHash);
+      const isBlacklisted =
+        await this.redisService.isTokenBlacklisted(tokenHash);
       if (isBlacklisted) {
         return { valid: false, error: 'Token has been revoked' };
       }
@@ -495,7 +532,7 @@ export class AuthService {
   }
 
   async updateRefreshToken(userId: string, refreshToken: string) {
-    const decoded = this.jwtService.decode(refreshToken) as any;
+    const decoded = this.jwtService.decode(refreshToken);
     const tokenHash = this.hashToken(refreshToken);
 
     const expiresAt =

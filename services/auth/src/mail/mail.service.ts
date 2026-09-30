@@ -102,7 +102,10 @@ export class MailService {
     const currentYear = new Date().getFullYear();
 
     const paragraphsHtml = params.paragraphs
-      .map((p) => `<p class="text-body" style="font-size: 15px; line-height: 1.65; color: #334155; margin: 0 0 18px 0;">${p}</p>`)
+      .map(
+        (p) =>
+          `<p class="text-body" style="font-size: 15px; line-height: 1.65; color: #334155; margin: 0 0 18px 0;">${p}</p>`,
+      )
       .join('');
 
     const buttonHtml =
@@ -119,16 +122,15 @@ export class MailService {
         </table>`
         : '';
 
-    const codeBoxHtml =
-      params.codeBoxContent
-        ? `
+    const codeBoxHtml = params.codeBoxContent
+      ? `
         <div class="text-muted" style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #64748B; margin: 0 0 8px 0;">
           ${params.codeBoxLabel || 'Or copy and paste this link into your browser:'}
         </div>
         <div class="code-box" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px 14px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; color: #334155; word-break: break-all; line-height: 1.5; margin-bottom: 24px;">
           ${params.codeBoxContent}
         </div>`
-        : '';
+      : '';
 
     const accountDetailsHtml = params.accountDetails
       ? `
@@ -292,7 +294,11 @@ export class MailService {
 </html>`;
   }
 
-  async sendVerificationEmail(to: string, name: string, token: string): Promise<boolean> {
+  async sendVerificationEmail(
+    to: string,
+    name: string,
+    token: string,
+  ): Promise<boolean> {
     const apiUrl = this.getApiUrl();
     const verificationUrl = `${apiUrl}/auth/verify-email?token=${token}`;
 
@@ -321,9 +327,11 @@ Autonomous AI-Powered Code Intelligence`;
       ],
       buttonText: 'Verify Email',
       buttonUrl: verificationUrl,
-      codeBoxLabel: 'Or copy and paste this verification link directly into your browser:',
+      codeBoxLabel:
+        'Or copy and paste this verification link directly into your browser:',
       codeBoxContent: verificationUrl,
-      notice: 'This verification link will expire in 24 hours. If you did not create an account, you can safely ignore this email.',
+      notice:
+        'This verification link will expire in 24 hours. If you did not create an account, you can safely ignore this email.',
     });
 
     try {
@@ -343,12 +351,18 @@ Autonomous AI-Powered Code Intelligence`;
       this.logger.log(`Verification email successfully dispatched to ${to}`);
       return true;
     } catch (error: any) {
-      this.logger.error(`Failed to send verification email to ${to}: ${error.message}`);
+      this.logger.error(
+        `Failed to send verification email to ${to}: ${error.message}`,
+      );
       return false;
     }
   }
 
-  async sendPasswordResetEmail(to: string, name: string, token: string): Promise<boolean> {
+  async sendPasswordResetEmail(
+    to: string,
+    name: string,
+    token: string,
+  ): Promise<boolean> {
     const frontendUrl = this.getFrontendUrl();
     const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
@@ -377,7 +391,8 @@ Autonomous AI-Powered Code Intelligence`;
       buttonUrl: resetUrl,
       codeBoxLabel: 'Or copy and paste this link into your browser:',
       codeBoxContent: resetUrl,
-      notice: 'This reset link is valid for <strong>1 hour</strong>. If you did not request a password reset, no further action is required and your account remains secure.',
+      notice:
+        'This reset link is valid for <strong>1 hour</strong>. If you did not request a password reset, no further action is required and your account remains secure.',
     });
 
     try {
@@ -397,7 +412,9 @@ Autonomous AI-Powered Code Intelligence`;
       this.logger.log(`Password reset email successfully dispatched to ${to}`);
       return true;
     } catch (error: any) {
-      this.logger.error(`Failed to send password reset email to ${to}: ${error.message}`);
+      this.logger.error(
+        `Failed to send password reset email to ${to}: ${error.message}`,
+      );
       return false;
     }
   }
@@ -433,7 +450,8 @@ Autonomous AI-Powered Code Intelligence`;
       ],
       buttonText: 'Proceed to Login',
       buttonUrl: loginUrl,
-      notice: 'If you did not request this information, you can safely disregard this email.',
+      notice:
+        'If you did not request this information, you can safely disregard this email.',
     });
 
     try {
@@ -453,9 +471,10 @@ Autonomous AI-Powered Code Intelligence`;
       this.logger.log(`Forgot username email successfully dispatched to ${to}`);
       return true;
     } catch (error: any) {
-      this.logger.error(`Failed to send forgot username email to ${to}: ${error.message}`);
+      this.logger.error(
+        `Failed to send forgot username email to ${to}: ${error.message}`,
+      );
       return false;
     }
   }
 }
-

@@ -9,7 +9,7 @@ export class AppController {
 
   @Get()
   @ApiOperation({
-    summary: 'Auth service health check',
+    summary: 'Auth service greeting',
     description:
       'Returns a greeting string confirming that the auth service is running.',
   })
@@ -23,5 +23,22 @@ export class AppController {
   })
   getHello(): string {
     return this.appService.getHello();
+  }
+
+  @Get('health')
+  @ApiOperation({
+    summary: 'Auth service health check',
+    description: 'Returns health status of the auth service',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Service is healthy',
+  })
+  getHealth() {
+    return {
+      status: 'ok',
+      service: 'auth-service',
+      timestamp: new Date().toISOString(),
+    };
   }
 }

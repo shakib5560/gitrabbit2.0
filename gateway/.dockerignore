@@ -1,0 +1,13 @@
+# Git & CI
+.git
+.github
+
+# Environment & Secrets
+.env*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# Logs & Temp
+*.log

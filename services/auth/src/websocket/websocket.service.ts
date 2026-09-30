@@ -46,11 +46,41 @@ export interface ChannelMeta {
 }
 
 export const DEFAULT_CHANNELS: ChannelMeta[] = [
-  { id: 'general', name: 'general', description: 'Team-wide announcements', icon: '💬', category: 'general' },
-  { id: 'code-reviews', name: 'code-reviews', description: 'PR discussions and review threads', icon: '🔍', category: 'code' },
-  { id: 'ai-alerts', name: 'ai-alerts', description: 'GitRabbit AI critical detections', icon: '🤖', category: 'alerts' },
-  { id: 'deployments', name: 'deployments', description: 'CI/CD pipeline notifications', icon: '🚀', category: 'code' },
-  { id: 'security', name: 'security', description: 'Security scan outputs & CVE notices', icon: '🛡️', category: 'alerts' },
+  {
+    id: 'general',
+    name: 'general',
+    description: 'Team-wide announcements',
+    icon: '💬',
+    category: 'general',
+  },
+  {
+    id: 'code-reviews',
+    name: 'code-reviews',
+    description: 'PR discussions and review threads',
+    icon: '🔍',
+    category: 'code',
+  },
+  {
+    id: 'ai-alerts',
+    name: 'ai-alerts',
+    description: 'GitRabbit AI critical detections',
+    icon: '🤖',
+    category: 'alerts',
+  },
+  {
+    id: 'deployments',
+    name: 'deployments',
+    description: 'CI/CD pipeline notifications',
+    icon: '🚀',
+    category: 'code',
+  },
+  {
+    id: 'security',
+    name: 'security',
+    description: 'Security scan outputs & CVE notices',
+    icon: '🛡️',
+    category: 'alerts',
+  },
 ];
 
 @Injectable()
@@ -82,14 +112,17 @@ export class WebsocketService {
 
       if (!token) {
         this.logger.warn(`Rejected unauthenticated connection: ${client.id}`);
-        client.emit('unauthorized', { message: 'Authentication token required' });
+        client.emit('unauthorized', {
+          message: 'Authentication token required',
+        });
         client.disconnect(true);
         return null;
       }
 
       // Check Redis token revocation blacklist
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-      const isBlacklisted = await this.redisService.isTokenBlacklisted(tokenHash);
+      const isBlacklisted =
+        await this.redisService.isTokenBlacklisted(tokenHash);
       if (isBlacklisted) {
         this.logger.warn(`Rejected revoked token connection: ${client.id}`);
         client.emit('unauthorized', { message: 'Token has been revoked' });
@@ -108,7 +141,9 @@ export class WebsocketService {
       });
 
       if (!user) {
-        this.logger.warn(`User ${payload.sub} not found for socket: ${client.id}`);
+        this.logger.warn(
+          `User ${payload.sub} not found for socket: ${client.id}`,
+        );
         client.emit('unauthorized', { message: 'User not found' });
         client.disconnect(true);
         return null;
@@ -153,7 +188,9 @@ export class WebsocketService {
 
       return connectedUser;
     } catch (err: any) {
-      this.logger.warn(`Handshake token verification failed (${client.id}): ${err?.message}`);
+      this.logger.warn(
+        `Handshake token verification failed (${client.id}): ${err?.message}`,
+      );
       client.emit('unauthorized', { message: 'Invalid or expired token' });
       client.disconnect(true);
       return null;
@@ -163,7 +200,9 @@ export class WebsocketService {
   /**
    * Handle client disconnection and update presence
    */
-  handleDisconnect(client: Socket): { userId: string; remainingSockets: number } | null {
+  handleDisconnect(
+    client: Socket,
+  ): { userId: string; remainingSockets: number } | null {
     const user = this.activeSockets.get(client.id);
     if (!user) return null;
 
@@ -176,7 +215,9 @@ export class WebsocketService {
       remainingSockets = sockets.size;
       if (remainingSockets === 0) {
         this.userSockets.delete(user.userId);
-        this.redisService.setUserPresence(user.userId, 'offline').catch(() => {});
+        this.redisService
+          .setUserPresence(user.userId, 'offline')
+          .catch(() => {});
       }
     }
 
@@ -217,7 +258,10 @@ export class WebsocketService {
   /**
    * Update user presence status (online / away / offline)
    */
-  updatePresence(client: Socket, status: 'online' | 'away' | 'offline'): ConnectedUser | null {
+  updatePresence(
+    client: Socket,
+    status: 'online' | 'away' | 'offline',
+  ): ConnectedUser | null {
     const user = this.getUser(client);
     if (!user) return null;
 
@@ -241,9 +285,19 @@ export class WebsocketService {
   /**
    * Get list of unique active online members formatted for ChatTab.tsx
    */
-  getOnlineMembers(): { name: string; role: string; status: string; avatar: string }[] {
+  getOnlineMembers(): {
+    name: string;
+    role: string;
+    status: string;
+    avatar: string;
+  }[] {
     const seenUsers = new Set<string>();
-    const members: { name: string; role: string; status: string; avatar: string }[] = [];
+    const members: {
+      name: string;
+      role: string;
+      status: string;
+      avatar: string;
+    }[] = [];
 
     for (const user of this.activeSockets.values()) {
       if (!seenUsers.has(user.userId)) {
@@ -259,11 +313,41 @@ export class WebsocketService {
 
     // Include seed workspace members if list is short to ensure frontend looks rich
     const defaultTeam = [
-      { name: 'Alex Morgan', role: 'Owner', status: 'online', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=60&q=80' },
-      { name: 'Sarah Chen', role: 'Admin', status: 'online', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=60&q=80' },
-      { name: 'Marcus Brodie', role: 'Reviewer', status: 'away', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=60&q=80' },
-      { name: 'David Kim', role: 'Developer', status: 'online', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=60&q=80' },
-      { name: 'Emma Watson', role: 'Viewer', status: 'offline', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=60&q=80' },
+      {
+        name: 'Alex Morgan',
+        role: 'Owner',
+        status: 'online',
+        avatar:
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=60&q=80',
+      },
+      {
+        name: 'Sarah Chen',
+        role: 'Admin',
+        status: 'online',
+        avatar:
+          'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=60&q=80',
+      },
+      {
+        name: 'Marcus Brodie',
+        role: 'Reviewer',
+        status: 'away',
+        avatar:
+          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=60&q=80',
+      },
+      {
+        name: 'David Kim',
+        role: 'Developer',
+        status: 'online',
+        avatar:
+          'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=60&q=80',
+      },
+      {
+        name: 'Emma Watson',
+        role: 'Viewer',
+        status: 'offline',
+        avatar:
+          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=60&q=80',
+      },
     ];
 
     for (const teamMember of defaultTeam) {
@@ -278,7 +362,10 @@ export class WebsocketService {
   /**
    * Persist a new chat message and return formatted message
    */
-  async sendMessage(client: Socket, dto: SendMessageDto): Promise<FormattedMessage> {
+  async sendMessage(
+    client: Socket,
+    dto: SendMessageDto,
+  ): Promise<FormattedMessage> {
     const user = this.getUser(client);
     if (!user) {
       throw new Error('Unauthorized');
@@ -347,7 +434,10 @@ export class WebsocketService {
   /**
    * Pin or unpin a message
    */
-  async pinMessage(client: Socket, dto: PinMessageDto): Promise<{ messageId: string; isPinned: boolean }> {
+  async pinMessage(
+    client: Socket,
+    dto: PinMessageDto,
+  ): Promise<{ messageId: string; isPinned: boolean }> {
     const message = await this.prisma.chatMessage.findUnique({
       where: { id: dto.messageId },
     });
@@ -367,7 +457,10 @@ export class WebsocketService {
   /**
    * Delete a message (author or admin only)
    */
-  async deleteMessage(client: Socket, dto: DeleteMessageDto): Promise<{ messageId: string }> {
+  async deleteMessage(
+    client: Socket,
+    dto: DeleteMessageDto,
+  ): Promise<{ messageId: string }> {
     const user = this.getUser(client);
     if (!user) throw new Error('Unauthorized');
 
@@ -379,7 +472,11 @@ export class WebsocketService {
       throw new Error('Message not found');
     }
 
-    if (message.userId !== user.userId && user.role !== 'Owner' && user.role !== 'Admin') {
+    if (
+      message.userId !== user.userId &&
+      user.role !== 'Owner' &&
+      user.role !== 'Admin'
+    ) {
       throw new Error('Forbidden: Cannot delete message');
     }
 
@@ -393,7 +490,11 @@ export class WebsocketService {
   /**
    * Fetch recent messages for a channel with reactions and formatting
    */
-  async getChannelMessages(channelId: string, currentUserId?: string, limit = 50): Promise<FormattedMessage[]> {
+  async getChannelMessages(
+    channelId: string,
+    currentUserId?: string,
+    limit = 50,
+  ): Promise<FormattedMessage[]> {
     const count = await this.prisma.chatMessage.count({
       where: { channelId },
     });
@@ -436,7 +537,9 @@ export class WebsocketService {
       });
     }
 
-    const prefix = dto.severity ? `🚨 **${dto.severity}** — ` : '🤖 **AI Alert** — ';
+    const prefix = dto.severity
+      ? `🚨 **${dto.severity}** — `
+      : '🤖 **AI Alert** — ';
     const content = `${prefix}${dto.content}`;
 
     const created = await this.prisma.chatMessage.create({
@@ -462,7 +565,10 @@ export class WebsocketService {
     reactions: { emoji: string; userId: string }[],
     currentUserId?: string,
   ): { emoji: string; count: number; reacted: boolean }[] {
-    const map = new Map<string, { emoji: string; count: number; reacted: boolean }>();
+    const map = new Map<
+      string,
+      { emoji: string; count: number; reacted: boolean }
+    >();
 
     for (const r of reactions) {
       const existing = map.get(r.emoji);
@@ -485,7 +591,10 @@ export class WebsocketService {
   /**
    * Format Prisma ChatMessage to frontend-ready Message interface
    */
-  private formatMessage(message: any, currentUserId?: string): FormattedMessage {
+  private formatMessage(
+    message: any,
+    currentUserId?: string,
+  ): FormattedMessage {
     const role: ConnectedUser['role'] =
       message.user?.role === 'ADMIN' ? 'Owner' : 'Developer';
 
@@ -507,9 +616,12 @@ export class WebsocketService {
       role,
       content: message.content,
       timestamp,
-      reactions: this.aggregateReactions(message.reactions || [], currentUserId),
+      reactions: this.aggregateReactions(
+        message.reactions || [],
+        currentUserId,
+      ),
       isPinned: Boolean(message.isPinned),
-      type: (message.type as any) || 'text',
+      type: message.type || 'text',
     };
   }
 
@@ -539,7 +651,8 @@ export class WebsocketService {
             {
               channelId: 'general',
               userId: bot.id,
-              content: '👋 Welcome to the GitRabbit HQ workspace! Connect your repositories to begin autonomous AI code intelligence and automated pull request reviews.',
+              content:
+                '👋 Welcome to the GitRabbit HQ workspace! Connect your repositories to begin autonomous AI code intelligence and automated pull request reviews.',
               type: 'system',
               isPinned: true,
             },
@@ -551,7 +664,8 @@ export class WebsocketService {
             {
               channelId: 'ai-alerts',
               userId: bot.id,
-              content: '🚨 **CRITICAL** — `services/auth/auth.service.ts`: Ensure rate-limiting and token revocation checks are active for all refresh token endpoints.',
+              content:
+                '🚨 **CRITICAL** — `services/auth/auth.service.ts`: Ensure rate-limiting and token revocation checks are active for all refresh token endpoints.',
               type: 'ai-alert',
               isPinned: true,
             },
@@ -559,7 +673,9 @@ export class WebsocketService {
         });
       }
     } catch (e: any) {
-      this.logger.debug(`Could not seed initial channel messages: ${e.message}`);
+      this.logger.debug(
+        `Could not seed initial channel messages: ${e.message}`,
+      );
     }
   }
 }

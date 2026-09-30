@@ -3,7 +3,8 @@ import { IsEmail, IsNotEmpty } from 'class-validator';
 
 export class ForgotUsernameDto {
   @ApiProperty({
-    description: 'Email address of the account to recover username / display name for',
+    description:
+      'Email address of the account to recover username / display name for',
     example: 'alex@example.com',
   })
   @IsNotEmpty({ message: 'Email address is required' })

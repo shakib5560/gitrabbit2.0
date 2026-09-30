@@ -26,7 +26,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
     if (token) {
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-      const isBlacklisted = await this.redisService.isTokenBlacklisted(tokenHash);
+      const isBlacklisted =
+        await this.redisService.isTokenBlacklisted(tokenHash);
       if (isBlacklisted) {
         throw new UnauthorizedException('Access token has been revoked');
       }

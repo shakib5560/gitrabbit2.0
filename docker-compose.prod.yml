@@ -1,0 +1,355 @@
+# ==============================================================================
+# Production Docker Compose Configuration for GitRabbit Microservices
+# ==============================================================================
+# Invariants:
+# 1. Dual-tier network isolation (public-edge vs internal-mesh).
+# 2. ZERO public host port bindings for databases, cache, and internal services.
+# 3. Only the API Gateway / Nginx reverse proxy binds ports 80 and 443.
+# 4. Container log rotation capped at 50m / 5 files to protect EC2 disk.
+# 5. Resource limits defined for all services to prevent host OOM.
+# 6. Explicit healthchecks with condition: service_healthy on dependencies.
+# ==============================================================================
+
+
+services:
+  # ----------------------------------------------------------------------------
+  # Edge Reverse Proxy / API Gateway (Nginx)
+  # Only this service exposes public ports 80 & 443
+  # ----------------------------------------------------------------------------
+  api-gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    image: gitrabbit-gateway:${IMAGE_TAG:-latest}
+    container_name: gitrabbit-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./gateway/cloudflare.conf:/etc/nginx/cloudflare.conf:ro
+      - ./gateway/certs:/etc/ssl/gitrabbit:ro
+      - certbot-etc:/etc/letsencrypt:ro
+      - certbot-var:/var/lib/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+      blog-service:
+        condition: service_healthy
+    networks:
+      - public-edge
+      - internal-mesh
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ----------------------------------------------------------------------------
+  # Auth + Realtime Service (NestJS + Prisma + Socket.io)
+  # ----------------------------------------------------------------------------
+  auth-service:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    image: gitrabbit-auth:${IMAGE_TAG:-latest}
+    container_name: gitrabbit-auth
+    restart: unless-stopped
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-${JWT_SECRET}}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-25m}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-30d}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal-mesh
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ----------------------------------------------------------------------------
+  # AI / LLM Service (FastAPI + SQLAlchemy + Alembic)
+  # ----------------------------------------------------------------------------
+  ai-service:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    image: gitrabbit-ai:${IMAGE_TAG:-latest}
+    container_name: gitrabbit-ai
+    restart: unless-stopped
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - DATABASE_URL=${AI_DATABASE_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PORT=8000
+    depends_on:
+      ai-db:
+        condition: service_healthy
+    networks:
+      - internal-mesh
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1024M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ----------------------------------------------------------------------------
+  # Blog Service (Fastify + Prisma)
+  # ----------------------------------------------------------------------------
+  blog-service:
+    build:
+      context: ./services/blog-service
+      dockerfile: Dockerfile
+    image: gitrabbit-blog:${IMAGE_TAG:-latest}
+    container_name: gitrabbit-blog
+    restart: unless-stopped
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - HOST=0.0.0.0
+      - DATABASE_URL=${BLOG_DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-${JWT_SECRET}}
+    depends_on:
+      blog-postgres:
+        condition: service_healthy
+    networks:
+      - internal-mesh
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ----------------------------------------------------------------------------
+  # Dedicated Auth Database (PostgreSQL 15 - Isolated)
+  # ----------------------------------------------------------------------------
+  auth-db:
+    image: postgres:15-alpine
+    container_name: gitrabbit-auth-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${AUTH_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:?AUTH_DB_PASSWORD is required}
+      POSTGRES_DB: ${AUTH_DB_NAME:-auth_db}
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    networks:
+      - internal-mesh
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER:-postgres} -d ${AUTH_DB_NAME:-auth_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ----------------------------------------------------------------------------
+  # Dedicated AI Database (PostgreSQL 15 - Isolated)
+  # ----------------------------------------------------------------------------
+  ai-db:
+    image: postgres:15-alpine
+    container_name: gitrabbit-ai-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${AI_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${AI_DB_PASSWORD:?AI_DB_PASSWORD is required}
+      POSTGRES_DB: ${AI_DB_NAME:-ai_db}
+    volumes:
+      - ai-db-data:/var/lib/postgresql/data
+    networks:
+      - internal-mesh
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AI_DB_USER:-postgres} -d ${AI_DB_NAME:-ai_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ----------------------------------------------------------------------------
+  # Dedicated Blog Database (PostgreSQL 15 - Isolated)
+  # ----------------------------------------------------------------------------
+  blog-postgres:
+    image: postgres:15-alpine
+    container_name: gitrabbit-blog-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${BLOG_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${BLOG_DB_PASSWORD:?BLOG_DB_PASSWORD is required}
+      POSTGRES_DB: ${BLOG_DB_NAME:-blog_db}
+    volumes:
+      - blog-db-data:/var/lib/postgresql/data
+    networks:
+      - internal-mesh
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${BLOG_DB_USER:-postgres} -d ${BLOG_DB_NAME:-blog_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ----------------------------------------------------------------------------
+  # In-Memory Cache & Message Broker (Redis 7 - Isolated)
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: gitrabbit-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - internal-mesh
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 384M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+# ==============================================================================
+# Isolated Networks Topology
+# ==============================================================================
+networks:
+  public-edge:
+    name: gitrabbit-public-edge
+    driver: bridge
+  internal-mesh:
+    name: gitrabbit-internal-mesh
+    driver: bridge
+
+# ==============================================================================
+# Named Persistent Storage Volumes
+# ==============================================================================
+volumes:
+  auth-db-data:
+    name: gitrabbit-prod-auth-db
+  ai-db-data:
+    name: gitrabbit-prod-ai-db
+  blog-db-data:
+    name: gitrabbit-prod-blog-db
+  redis-data:
+    name: gitrabbit-prod-redis-data
+  certbot-etc:
+    name: gitrabbit-prod-certbot-etc
+  certbot-var:
+    name: gitrabbit-prod-certbot-var
+  certbot-www:
+    name: gitrabbit-prod-certbot-www

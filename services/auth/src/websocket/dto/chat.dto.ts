@@ -1,4 +1,13 @@
-import { IsString, IsNotEmpty, IsOptional, IsIn, MaxLength, IsNumber, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsIn,
+  MaxLength,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class JoinChannelDto {
   @IsString()

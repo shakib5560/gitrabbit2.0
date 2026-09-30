@@ -48,7 +48,11 @@ describe('RedisService (Integration)', () => {
 
   it('should cache and invalidate user profile', async () => {
     const testUserId = `user_${Date.now()}`;
-    const profile = { name: 'Test User', email: 'test@gitrabbit.co', role: 'ADMIN' };
+    const profile = {
+      name: 'Test User',
+      email: 'test@gitrabbit.co',
+      role: 'ADMIN',
+    };
 
     await redisService.setCachedUserProfile(testUserId, profile, 60);
     const cached = await redisService.getCachedUserProfile(testUserId);

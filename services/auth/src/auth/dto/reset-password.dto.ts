@@ -11,7 +11,8 @@ export class ResetPasswordDto {
   token: string;
 
   @ApiProperty({
-    description: 'New password meeting complexity requirements (at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special character)',
+    description:
+      'New password meeting complexity requirements (at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special character)',
     example: 'NewSecurePassword123!',
   })
   @IsNotEmpty({ message: 'New password is required' })

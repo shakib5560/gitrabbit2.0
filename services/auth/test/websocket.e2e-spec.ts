@@ -34,7 +34,8 @@ describe('WebsocketGateway (e2e)', () => {
         name: 'WebSocket Tester',
         email,
         role: 'ADMIN',
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60',
+        avatarUrl:
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60',
       },
     });
 
@@ -188,7 +189,9 @@ describe('WebsocketGateway (e2e)', () => {
       if (data.messageId === createdMsgId) {
         expect(data.channelId).toBe(channelId);
         expect(Array.isArray(data.reactions)).toBe(true);
-        const rocketReaction = data.reactions.find((r: any) => r.emoji === '🚀');
+        const rocketReaction = data.reactions.find(
+          (r: any) => r.emoji === '🚀',
+        );
         expect(rocketReaction).toBeDefined();
         expect(rocketReaction.count).toBeGreaterThanOrEqual(1);
         socket.disconnect();

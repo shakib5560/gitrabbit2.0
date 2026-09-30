@@ -1,0 +1,118 @@
+name: Continuous Deployment - AWS EC2 (Docker)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_rollback:
+        description: 'Trigger immediate automated rollback to previous version'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to EC2 Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.APP_URL }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH Deploy Key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Scan EC2 Host Key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H -p ${{ vars.EC2_SSH_PORT || 22 }} ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Execute Deployment on AWS EC2
+        env:
+          EC2_USER: ${{ secrets.EC2_USER || 'ubuntu' }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_PORT: ${{ vars.EC2_SSH_PORT || 22 }}
+          TARGET_DIR: ${{ vars.TARGET_DIR || '/opt/gitrabbit' }}
+          FORCE_ROLLBACK: ${{ inputs.force_rollback || false }}
+          PROD_ENV_CONTENT: ${{ secrets.PROD_ENV_FILE }}
+        run: |
+          echo "=========================================================="
+          echo "🚀 Initiating Remote Deployment on $EC2_HOST..."
+          echo "Target Directory: $TARGET_DIR"
+          echo "=========================================================="
+
+          if [ "$FORCE_ROLLBACK" = "true" ]; then
+            echo "⚠️ Executing automated rollback on remote EC2 host..."
+            ssh -p $EC2_PORT $EC2_USER@$EC2_HOST << 'EOF'
+              set -e
+              cd $TARGET_DIR
+              chmod +x scripts/*.sh
+              ./scripts/rollback.sh
+            EOF
+          else
+            # Sync .env.production from GitHub Secrets if provided
+            if [ -n "$PROD_ENV_CONTENT" ]; then
+              echo "🔐 Updating .env.production from GitHub Secrets..."
+              printf '%s\n' "$PROD_ENV_CONTENT" | ssh -p $EC2_PORT $EC2_USER@$EC2_HOST "cat > $TARGET_DIR/.env.production && chmod 600 $TARGET_DIR/.env.production"
+            fi
+
+            echo "📦 Synchronizing deployment configuration and files to EC2..."
+            # Sync files excluding unnecessary dev artifacts
+            rsync -avz -e "ssh -p $EC2_PORT" \
+              --exclude '.git' \
+              --exclude 'node_modules' \
+              --exclude '.venv' \
+              --exclude 'coverage' \
+              --exclude 'scratch' \
+              ./ $EC2_USER@$EC2_HOST:$TARGET_DIR/
+
+            echo "🐳 Running Production Zero-Downtime Deployment..."
+            ssh -p $EC2_PORT $EC2_USER@$EC2_HOST << 'EOF'
+              set -e
+              cd $TARGET_DIR
+              chmod +x scripts/*.sh scripts/*.py
+              ./scripts/deploy.sh
+            EOF
+          fi
+
+      - name: Post-Deployment Verification Probe
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -n "$APP_URL" ]; then
+            echo "Probing production URL: $APP_URL"
+            python3 scripts/verify_deployment.py "$APP_URL" || echo "External probe completed with warning."
+          fi
+
+      - name: Generate Rich GitHub Step Summary
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" = "success" ]; then
+            STATUS="SUCCESS"
+          else
+            STATUS="FAILED"
+          fi
+          python3 scripts/generate_job_summary.py \
+            "$STATUS" \
+            "production" \
+            "${{ github.sha }}" \
+            "${{ github.actor }}" \
+            "${{ github.run_id }}" \
+            "sha-${GITHUB_SHA::7}" \
+            "${{ vars.APP_URL || 'https://api.gitrabbit.co' }}"

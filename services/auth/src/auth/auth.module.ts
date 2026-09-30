@@ -11,14 +11,15 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { MailModule } from '../mail/mail.module';
 
 @Module({
-  imports: [
-    PrismaModule,
-    MailModule,
-    PassportModule,
-    JwtModule.register({}),
-  ],
+  imports: [PrismaModule, MailModule, PassportModule, JwtModule.register({})],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtRefreshStrategy, GithubStrategy, RolesGuard],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    JwtRefreshStrategy,
+    GithubStrategy,
+    RolesGuard,
+  ],
   exports: [AuthService, JwtModule, RolesGuard],
 })
 export class AuthModule {}

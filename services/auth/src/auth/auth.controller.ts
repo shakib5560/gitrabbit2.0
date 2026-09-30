@@ -50,7 +50,9 @@ export class AuthController {
     return {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax',
+      sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as
+        | 'none'
+        | 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000,
     };
   }
@@ -170,7 +172,9 @@ export class AuthController {
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const user = req.user as any;
     const authHeader = req.headers['authorization'];
-    const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
+    const accessToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.split(' ')[1]
+      : undefined;
     await this.authService.logout(user.sub, user.refreshToken, accessToken);
     res.clearCookie('Refresh');
     return { message: 'Logged out successfully' };
@@ -281,10 +285,7 @@ export class AuthController {
     description: 'Unauthorized - Missing or invalid Bearer JWT access token',
     type: ErrorResponseDto,
   })
-  async updateProfile(
-    @Req() req: Request,
-    @Body() dto: UpdateProfileDto,
-  ) {
+  async updateProfile(@Req() req: Request, @Body() dto: UpdateProfileDto) {
     const user = req.user as any;
     return this.authService.updateProfile(user.userId, dto);
   }
@@ -425,4 +426,3 @@ export class AuthController {
     return this.authService.forgotUsername(dto.email);
   }
 }
-

@@ -36,7 +36,9 @@ import {
 })
 @UseFilters(new WebsocketExceptionsFilter())
 @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
+export class WebsocketGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
+{
   @WebSocketServer()
   server: Server;
 
@@ -52,7 +54,9 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       const pubClient = this.redisService.getClient();
       const subClient = this.redisService.createDuplicateClient();
       server.adapter(createAdapter(pubClient, subClient));
-      this.logger.log('Socket.IO Redis Adapter successfully attached for horizontal pub/sub!');
+      this.logger.log(
+        'Socket.IO Redis Adapter successfully attached for horizontal pub/sub!',
+      );
     } catch (err: any) {
       this.logger.warn(
         `Failed to attach Socket.IO Redis Adapter: ${err.message}. Defaulting to in-memory adapter.`,
@@ -106,7 +110,10 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
    * Ping / Heartbeat
    */
   @SubscribeMessage('ping')
-  handlePing(@ConnectedSocket() client: Socket): { event: string; timestamp: number } {
+  handlePing(@ConnectedSocket() client: Socket): {
+    event: string;
+    timestamp: number;
+  } {
     return { event: 'pong', timestamp: Date.now() };
   }
 
@@ -125,7 +132,10 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     }
 
     const room = this.websocketService.joinChannel(client, dto.channelId);
-    const messages = await this.websocketService.getChannelMessages(dto.channelId, user.userId);
+    const messages = await this.websocketService.getChannelMessages(
+      dto.channelId,
+      user.userId,
+    );
 
     client.emit('joined_channel', { channelId: dto.channelId, room });
     client.emit('channel_messages', { channelId: dto.channelId, messages });

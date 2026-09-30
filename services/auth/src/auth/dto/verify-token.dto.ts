@@ -3,7 +3,8 @@ import { IsNotEmpty, IsString } from 'class-validator';
 
 export class VerifyTokenDto {
   @ApiProperty({
-    description: 'JWT Bearer token to verify for Superadmin/Admin dashboard access',
+    description:
+      'JWT Bearer token to verify for Superadmin/Admin dashboard access',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   })
   @IsNotEmpty({ message: 'Token cannot be empty' })

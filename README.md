@@ -690,3 +690,127 @@ DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5434/ai_db" alemb
 | Cache / Broker | Redis | v7 | 🚧 Provisioned, not integrated |
 | LLM Providers | OpenAI / Anthropic | Latest | 🚧 SDKs installed |
 | Containerization | Docker + Compose | v3 | ✅ Active |
+| CI/CD Pipeline | GitHub Actions | v4 | ✅ Active |
+| Edge Reverse Proxy | Nginx + Certbot | 1.27-alpine | ✅ Active |
+
+---
+
+## 🚀 Production AWS EC2 Deployment & CI/CD Guide
+
+The GitRabbit backend is fully engineered for automated, zero-downtime deployment to AWS EC2 using Docker Compose, Nginx SSL reverse proxying, and GitHub Actions.
+
+### 1. Production Architecture Principles
+- **Dual-Tier Network Isolation**: External clients only reach ports `80` (HTTP) and `443` (HTTPS) via the Nginx Reverse Proxy / Gateway (`microservices-public-edge`).
+- **Internal Database & Broker Isolation**: PostgreSQL databases (`auth-db`, `ai-db`, `blog-postgres`) and Redis run strictly within `microservices-internal-mesh` with **zero public host port bindings**.
+- **OOM & Resource Protection**: Kernel sysctl tuning applied, 4GB swap space configured, and per-container CPU/RAM limits set in `docker-compose.prod.yml`.
+- **Log Rotation Hardening**: Docker daemon and Compose containers capped at `max-size: 50m` and `max-file: 5` to prevent EC2 disk exhaustion.
+- **Pre-Deploy Database Snapshots**: Automated `pg_dump` snapshots captured to `/var/backups/deploy-snapshots/` prior to container updates and migrations.
+- **Health-Gated Rolling Transitions**: 120s container polling loop verifying healthy state before traffic redirection; automated rollback on failure.
+
+---
+
+### 2. Initial AWS EC2 Host Provisioning
+On a fresh Ubuntu 22.04 LTS or 24.04 LTS EC2 instance:
+
+```bash
+# 1. Clone repository
+git clone https://github.com/shakib5560/gitrabbit2.0.git /opt/gitrabbit
+cd /opt/gitrabbit
+
+# 2. Run idempotent setup (Installs Docker CE, Compose V2, 4GB swap, sysctl tuning, UFW firewall)
+sudo ./scripts/setup-ec2.sh
+
+# 3. Apply docker group permissions
+newgrp docker
+```
+
+---
+
+### 3. Production Environment Setup
+Create your production secrets file on the EC2 host:
+
+```bash
+cp .env.production.example .env.production
+chmod 600 .env.production
+nano .env.production
+```
+
+Ensure the following critical variables are populated:
+- `DOMAIN_NAME`: e.g. `api.gitrabbit.co`
+- `AUTH_DB_PASSWORD`, `AI_DB_PASSWORD`, `BLOG_DB_PASSWORD`
+- `JWT_SECRET`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
+- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
+
+---
+
+### 4. Cold-Start SSL (Let's Encrypt / Certbot)
+To obtain genuine Let's Encrypt certificates:
+
+```bash
+./scripts/init-letsencrypt.sh .env.production
+```
+
+This bootstraps a fallback certificate so Nginx starts, validates your domain using Certbot in webroot mode, and reloads Nginx with TLS 1.2/1.3.
+
+---
+
+### 5. Automated CI/CD with GitHub Actions
+
+#### Required GitHub Secrets & Variables
+In your GitHub repository settings (`Settings -> Secrets and variables -> Actions`):
+
+**Repository Secrets:**
+| Secret Name | Description |
+|---|---|
+| `EC2_HOST` | Public IP or DNS of your AWS EC2 instance |
+| `EC2_USER` | SSH user (`ubuntu` or your deploy user) |
+| `EC2_SSH_KEY` | Private SSH key (PEM) authorized on the EC2 host |
+| `JWT_SECRET` | Secret key used for CI test signing |
+| `JWT_ACCESS_SECRET` | Access token secret |
+| `JWT_REFRESH_SECRET` | Refresh token secret |
+
+**Repository Variables:**
+| Variable Name | Description | Default |
+|---|---|---|
+| `EC2_SSH_PORT` | SSH Port | `22` |
+| `TARGET_DIR` | Deployment directory on EC2 | `/opt/gitrabbit` |
+| `APP_URL` | Production public URL | `https://api.gitrabbit.co` |
+
+#### Pipelines:
+1. **`.github/workflows/ci.yml`**: Triggered on all Pull Requests and pushes to `main`.
+   - Lints TypeScript & Python code
+   - Typechecks with `tsc` and `py_compile`
+   - Runs E2E integration test suite with isolated Redis & Postgres service containers
+   - Builds container images with BuildKit and executes Trivy vulnerability scans
+2. **`.github/workflows/cd.yml`**: Triggered on merge/push to `main` or manual trigger (`workflow_dispatch`).
+   - Authenticates to EC2 via `webfactory/ssh-agent`
+   - Synchronizes manifests and scripts via `rsync`
+   - Executes zero-downtime `./scripts/deploy.sh` with automated pre-deploy DB snapshot
+   - Verifies deployment with `scripts/verify_deployment.py`
+   - Publishes summary to `$GITHUB_STEP_SUMMARY`
+   - Supports 1-click automated rollback via `workflow_dispatch -> force_rollback: true`
+
+---
+
+### 6. Day-2 Operations & Maintenance Commands
+
+```bash
+# View live container status and health
+docker compose -f docker-compose.prod.yml ps
+
+# View rolling logs across all services
+docker compose -f docker-compose.prod.yml logs -f --tail=100
+
+# Inspect live resource usage
+docker stats --no-stream
+
+# Run manual deployment
+./scripts/deploy.sh
+
+# Emergency Rollback to previous container state
+./scripts/rollback.sh
+
+# Run post-deployment security & health audit
+python3 scripts/verify_deployment.py docker-compose.prod.yml https://api.gitrabbit.co
+```
+

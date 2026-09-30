@@ -78,7 +78,9 @@ describe('Auth Service End-to-End Test Suite', () => {
     });
 
     it('GET /docs-json should serve OpenAPI JSON schema', async () => {
-      const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/docs-json')
+        .expect(200);
       expect(res.body.info.title).toBe('GitRabbit Auth Service API');
       expect(res.body.paths['/auth/register']).toBeDefined();
       expect(res.body.paths['/auth/login']).toBeDefined();
@@ -115,7 +117,9 @@ describe('Auth Service End-to-End Test Suite', () => {
       // Verify Set-Cookie header contains Refresh cookie
       const cookies = res.headers['set-cookie'] as unknown as string[];
       expect(cookies).toBeDefined();
-      const refreshCookieHeader = cookies.find((c: string) => c.startsWith('Refresh='));
+      const refreshCookieHeader = cookies.find((c: string) =>
+        c.startsWith('Refresh='),
+      );
       expect(refreshCookieHeader).toBeDefined();
 
       accessToken = res.body.accessToken;
@@ -155,13 +159,14 @@ describe('Auth Service End-to-End Test Suite', () => {
         })
         .expect(201);
 
-
       expect(res.body.accessToken).toBeDefined();
       expect(res.body.user.email).toBe(testUser.email);
 
       const cookies = res.headers['set-cookie'] as unknown as string[];
       expect(cookies).toBeDefined();
-      const refreshCookieHeader = cookies.find((c: string) => c.startsWith('Refresh='));
+      const refreshCookieHeader = cookies.find((c: string) =>
+        c.startsWith('Refresh='),
+      );
       expect(refreshCookieHeader).toBeDefined();
 
       accessToken = res.body.accessToken;
@@ -196,13 +201,14 @@ describe('Auth Service End-to-End Test Suite', () => {
         .set('Cookie', [refreshCookie])
         .expect(201);
 
-
       expect(res.body.accessToken).toBeDefined();
 
       // Update refresh cookie from rotation
       const cookies = res.headers['set-cookie'] as unknown as string[];
       if (cookies) {
-        const refreshCookieHeader = cookies.find((c: string) => c.startsWith('Refresh='));
+        const refreshCookieHeader = cookies.find((c: string) =>
+          c.startsWith('Refresh='),
+        );
         if (refreshCookieHeader) {
           refreshCookie = refreshCookieHeader.split(';')[0];
         }
@@ -220,7 +226,9 @@ describe('Auth Service End-to-End Test Suite', () => {
         .expect(200);
 
       expect(res.body.name).toBe('Updated Test User');
-      expect(res.body.avatarUrl).toBe('https://avatars.githubusercontent.com/u/9999999?v=4');
+      expect(res.body.avatarUrl).toBe(
+        'https://avatars.githubusercontent.com/u/9999999?v=4',
+      );
     });
 
     it('POST /auth/verify-token - should verify valid token', async () => {
@@ -254,7 +262,9 @@ describe('Auth Service End-to-End Test Suite', () => {
       // Refresh cookie should be cleared
       const cookies = res.headers['set-cookie'] as unknown as string[];
       expect(cookies).toBeDefined();
-      const refreshCookieHeader = cookies.find((c: string) => c.startsWith('Refresh=;'));
+      const refreshCookieHeader = cookies.find((c: string) =>
+        c.startsWith('Refresh=;'),
+      );
       expect(refreshCookieHeader).toBeDefined();
     });
 
@@ -282,7 +292,9 @@ describe('Auth Service End-to-End Test Suite', () => {
         .send({ token: 'non_existent_token_12345' })
         .expect(400);
 
-      expect(res.body.message).toContain('Invalid or expired verification token');
+      expect(res.body.message).toContain(
+        'Invalid or expired verification token',
+      );
     });
 
     it('POST /auth/verify-email - should verify email with valid token', async () => {
