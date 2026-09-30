@@ -43,12 +43,13 @@ RUN groupadd -g 1001 appgroup && \
 
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=appuser:appgroup . .
+RUN chmod +x entrypoint.sh || true
 
 USER appuser
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=20s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://127.0.0.1:8000/health || exit 1
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips '*'"]
+ENTRYPOINT ["/bin/bash", "./entrypoint.sh"]

@@ -23,14 +23,13 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from app.db.database import Base
+from app.db.database import Base, get_normalized_database_url
 from app.db import models
 
 target_metadata = Base.metadata
 
-db_url = os.getenv("DATABASE_URL")
-if db_url:
-    config.set_main_option("sqlalchemy.url", db_url)
+db_url = get_normalized_database_url()
+config.set_main_option("sqlalchemy.url", db_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
