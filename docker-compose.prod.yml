@@ -72,9 +72,7 @@ services:
     container_name: gitrabbit-auth
     restart: unless-stopped
     env_file:
-      - path: .env.production
-        required: false
-      - path: .env
+      - path: ${ENV_FILE:-.env.production}
         required: false
     environment:
       - NODE_ENV=production
@@ -102,8 +100,8 @@ services:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/health"]
       interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      start_period: 30s
     stop_grace_period: 20s
     logging:
       driver: "json-file"
@@ -122,9 +120,7 @@ services:
     container_name: gitrabbit-ai
     restart: unless-stopped
     env_file:
-      - path: .env.production
-        required: false
-      - path: .env
+      - path: ${ENV_FILE:-.env.production}
         required: false
     environment:
       - DATABASE_URL=${AI_DATABASE_URL}
@@ -145,8 +141,8 @@ services:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
       interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      start_period: 30s
     stop_grace_period: 20s
     logging:
       driver: "json-file"
@@ -165,15 +161,13 @@ services:
     container_name: gitrabbit-blog
     restart: unless-stopped
     env_file:
-      - path: .env.production
-        required: false
-      - path: .env
+      - path: ${ENV_FILE:-.env.production}
         required: false
     environment:
       - NODE_ENV=production
       - PORT=4000
       - HOST=0.0.0.0
-      - DATABASE_URL=${BLOG_DATABASE_URL}
+      - DATABASE_URL=${BLOG_DATABASE_URL:-${DATABASE_URL}}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-${JWT_SECRET}}
     depends_on:
@@ -190,8 +184,8 @@ services:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:4000/health"]
       interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      start_period: 30s
     stop_grace_period: 20s
     logging:
       driver: "json-file"

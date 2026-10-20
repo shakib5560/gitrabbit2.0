@@ -142,6 +142,36 @@ def probe_endpoint(url: str) -> bool:
         print_result("FAIL", f"Unexpected error during probe: {str(e)}")
         return False
 
+def probe_service_routes(base_url: str) -> bool:
+    print(f"\n{BLUE}=== 4. Probing Downstream Service Routes via Gateway ==={NC}")
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+
+    services = [
+        ("Auth Service", f"{base_url}/api/auth/health"),
+        ("AI Service", f"{base_url}/api/ai/health"),
+        ("Blog Service", f"{base_url}/api/blog/health"),
+    ]
+
+    all_passed = True
+    for name, endpoint in services:
+        req = urllib.request.Request(endpoint, headers={"User-Agent": "GitRabbit-Deployment-Verifier/1.0"})
+        try:
+            with urllib.request.urlopen(req, timeout=10, context=ctx) as resp:
+                if resp.getcode() == 200:
+                    print_result("PASS", f"{name} ({endpoint}): HTTP 200 OK")
+                else:
+                    print_result("WARN", f"{name} ({endpoint}): HTTP {resp.getcode()}")
+                    all_passed = False
+        except urllib.error.HTTPError as e:
+            print_result("FAIL", f"{name} ({endpoint}): HTTP Error {e.code}")
+            all_passed = False
+        except Exception as e:
+            print_result("FAIL", f"{name} ({endpoint}): {str(e)}")
+            all_passed = False
+    return all_passed
+
 def main():
     compose_file = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].endswith((".yml", ".yaml")) else "docker-compose.prod.yml"
     url = sys.argv[2] if len(sys.argv) > 2 else (sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].startswith("http") else "http://localhost/healthz")
@@ -153,8 +183,11 @@ def main():
     p_ok = check_exposed_ports(compose_file)
     e_ok = probe_endpoint(url) if url else True
 
+    base_url = url.rsplit('/healthz', 1)[0] if url and url.endswith('/healthz') else (url.rstrip('/') if url else "")
+    s_ok = probe_service_routes(base_url) if base_url else True
+
     print("\n==========================================================")
-    if c_ok and p_ok and e_ok:
+    if c_ok and p_ok and e_ok and s_ok:
         print(f"{GREEN}🎉 DEPLOYMENT VERIFICATION PASSED ALL CHECKS!{NC}")
         sys.exit(0)
     else:

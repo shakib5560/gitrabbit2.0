@@ -79,6 +79,9 @@ jobs:
               --exclude '.venv' \
               --exclude 'coverage' \
               --exclude 'scratch' \
+              --exclude '.env' \
+              --exclude '.env.local' \
+              --exclude '.env.test' \
               ./ $EC2_USER@$EC2_HOST:$TARGET_DIR/
 
             echo "🐳 Running Production Zero-Downtime Deployment..."

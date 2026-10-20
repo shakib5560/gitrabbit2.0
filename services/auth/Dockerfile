@@ -27,7 +27,7 @@ WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000
 
-RUN apk add --no-cache dumb-init openssl
+RUN apk add --no-cache dumb-init openssl libc6-compat
 
 # Security: Non-root unprivileged service account
 RUN addgroup --system --gid 1001 nestjs && \
@@ -37,13 +37,15 @@ COPY --from=builder --chown=nestjs:nestjs /app/package.json ./package.json
 COPY --from=builder --chown=nestjs:nestjs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nestjs /app/prisma ./prisma
 COPY --from=builder --chown=nestjs:nestjs /app/dist ./dist
+COPY --chown=nestjs:nestjs entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh || true
 
 USER nestjs
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=20s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=20s --timeout=5s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/health || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+CMD ["/bin/sh", "./entrypoint.sh"]

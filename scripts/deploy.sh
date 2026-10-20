@@ -59,6 +59,13 @@ if [[ ! -f "$ENV_FILE" ]]; then
     fi
 fi
 
+if [[ -f "$ENV_FILE" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$ENV_FILE"
+    set +a
+fi
+
 # Disk space check
 AVAIL_DISK_PERCENT=$(df -h / | awk 'NR==2 {print $5}' | tr -d '%')
 if [[ "$AVAIL_DISK_PERCENT" -ge 90 ]]; then
@@ -76,11 +83,16 @@ capture_db_snapshot() {
     local service="$1"
     local db_user="$2"
     local db_name="$3"
+    local db_pass="${4:-}"
     local outfile="${BACKUP_DIR}/${service}_${TIMESTAMP}.sql.gz"
 
     if docker compose -f "$COMPOSE_FILE" ps --services --filter "status=running" 2>/dev/null | grep -q "^${service}$"; then
         log_info "Creating snapshot for $service ($db_name)..."
-        if docker compose -f "$COMPOSE_FILE" exec -T "$service" pg_dump -U "$db_user" "$db_name" 2>/dev/null | gzip > "$outfile"; then
+        local env_arg=()
+        if [[ -n "$db_pass" ]]; then
+            env_arg=(-e "PGPASSWORD=$db_pass")
+        fi
+        if docker compose -f "$COMPOSE_FILE" exec -T "${env_arg[@]}" "$service" pg_dump -U "$db_user" "$db_name" 2>/dev/null | gzip > "$outfile"; then
             log_success "Snapshot saved: $outfile"
         else
             log_warn "Could not snapshot $service (container may be initializing or using different credentials)."
@@ -88,9 +100,9 @@ capture_db_snapshot() {
     fi
 }
 
-capture_db_snapshot "auth-db" "${AUTH_DB_USER:-postgres}" "${AUTH_DB_NAME:-auth_db}"
-capture_db_snapshot "ai-db" "${AI_DB_USER:-postgres}" "${AI_DB_NAME:-ai_db}"
-capture_db_snapshot "blog-postgres" "${BLOG_DB_USER:-postgres}" "${BLOG_DB_NAME:-blog_db}"
+capture_db_snapshot "auth-db" "${AUTH_DB_USER:-postgres}" "${AUTH_DB_NAME:-auth_db}" "${AUTH_DB_PASSWORD:-}"
+capture_db_snapshot "ai-db" "${AI_DB_USER:-postgres}" "${AI_DB_NAME:-ai_db}" "${AI_DB_PASSWORD:-}"
+capture_db_snapshot "blog-postgres" "${BLOG_DB_USER:-postgres}" "${BLOG_DB_NAME:-blog_db}" "${BLOG_DB_PASSWORD:-}"
 
 # 3. Snapshot Current Active Images for Rollback
 log_info "Step 3/8: Tagging current active images for potential rollback..."

@@ -138,7 +138,7 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?schema=public
         run: |
           npx prisma generate
-          npx prisma db push --accept-data-loss
+          npx prisma migrate deploy
 
       - name: Run Auth E2E Tests
         working-directory: services/auth

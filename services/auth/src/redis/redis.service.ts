@@ -15,7 +15,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   constructor() {
     this.redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
     this.client = new Redis(this.redisUrl, {
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: null,
       enableReadyCheck: true,
       retryStrategy(times) {
         return Math.min(times * 100, 3000);
@@ -68,7 +68,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    * Creates a duplicate client instance (required for Socket.IO Redis pub/sub adapter)
    */
   createDuplicateClient(): Redis {
-    return this.client.duplicate();
+    const duplicate = this.client.duplicate();
+    duplicate.on('error', (err) => {
+      this.logger.warn(`Redis duplicate client error: ${err.message}`);
+    });
+    return duplicate;
   }
 
   // ─── Basic Key-Value Operations ───
