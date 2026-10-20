@@ -190,16 +190,29 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Scan Gateway Image with Trivy
-        uses: aquasecurity/trivy-action@v0.33.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
+          scan-type: 'image'
           image-ref: gitrabbit-gateway:ci-test
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Inspect Gateway Image Vulnerabilities (Table Summary)
+        uses: aquasecurity/trivy-action@v0.36.0
+        if: always()
+        with:
+          scan-type: 'image'
+          image-ref: gitrabbit-gateway:ci-test
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
 
       - name: Upload Trivy Scan to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: 'trivy-results.sarif'

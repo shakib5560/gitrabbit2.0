@@ -1,6 +1,7 @@
 FROM nginx:1.27-alpine
 
-RUN apk add --no-cache curl openssl
+RUN apk update && apk upgrade --no-cache && \
+    apk add --no-cache curl openssl
 
 # Generate default SSL certificate for 3.110.66.16 & api.gitrabbit.co so Port 443 starts out-of-the-box
 RUN mkdir -p /etc/ssl/gitrabbit /var/www/certbot /var/log/nginx && \
