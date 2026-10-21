@@ -50,6 +50,7 @@ jobs:
           TARGET_DIR: ${{ vars.TARGET_DIR || '/opt/gitrabbit' }}
           FORCE_ROLLBACK: ${{ inputs.force_rollback || false }}
           PROD_ENV_CONTENT: ${{ secrets.PROD_ENV_FILE }}
+          SECRET_MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
         run: |
           echo "=========================================================="
           echo "🚀 Initiating Remote Deployment on $EC2_HOST..."
@@ -65,10 +66,24 @@ jobs:
               ./scripts/rollback.sh
           EOF
           else
-            # Sync .env.production from GitHub Secrets if provided
+            # Sync, validate, and normalize .env.production from GitHub Secrets if provided
             if [ -n "$PROD_ENV_CONTENT" ]; then
-              echo "🔐 Updating .env.production from GitHub Secrets..."
-              printf '%s\n' "$PROD_ENV_CONTENT" | ssh -p $EC2_PORT $EC2_USER@$EC2_HOST "cat > $TARGET_DIR/.env.production && chmod 600 $TARGET_DIR/.env.production"
+              echo "🔐 Validating and normalizing .env.production from GitHub Secrets..."
+              TMP_ENV=$(mktemp)
+              chmod 600 "$TMP_ENV"
+              printf '%s\n' "$PROD_ENV_CONTENT" > "$TMP_ENV"
+
+              SET_ARGS=()
+              if [ -n "$SECRET_MAIL_PASSWORD" ]; then
+                SET_ARGS=(--set "MAIL_PASSWORD=$SECRET_MAIL_PASSWORD")
+              fi
+
+              # Validate syntax and normalize unquoted secrets containing spaces
+              python3 scripts/validate_env.py "$TMP_ENV" --fix "${SET_ARGS[@]}"
+
+              echo "🔐 Syncing validated .env.production to EC2 host..."
+              ssh -p $EC2_PORT $EC2_USER@$EC2_HOST "cat > $TARGET_DIR/.env.production && chmod 600 $TARGET_DIR/.env.production" < "$TMP_ENV"
+              rm -f "$TMP_ENV"
             fi
 
             echo "📦 Synchronizing deployment configuration and files to EC2..."
@@ -83,6 +98,12 @@ jobs:
               --exclude '.env.local' \
               --exclude '.env.test' \
               ./ $EC2_USER@$EC2_HOST:$TARGET_DIR/
+
+            # If standalone MAIL_PASSWORD secret was provided without full PROD_ENV_FILE, update it on EC2
+            if [ -z "$PROD_ENV_CONTENT" ] && [ -n "$SECRET_MAIL_PASSWORD" ]; then
+              echo "🔐 Updating remote .env.production with standalone MAIL_PASSWORD..."
+              ssh -p $EC2_PORT $EC2_USER@$EC2_HOST "if [ -f $TARGET_DIR/.env.production ]; then python3 $TARGET_DIR/scripts/validate_env.py $TARGET_DIR/.env.production --fix --set \"MAIL_PASSWORD=\$SECRET_MAIL_PASSWORD\"; fi"
+            fi
 
             echo "🐳 Running Production Zero-Downtime Deployment..."
             ssh -p $EC2_PORT $EC2_USER@$EC2_HOST << EOF

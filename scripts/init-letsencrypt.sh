@@ -11,17 +11,54 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 ENV_FILE="${1:-.env.production}"
-if [[ -f "$ENV_FILE" ]]; then
-    # Load domain and email from env
-    DOMAIN=$(grep -E "^DOMAIN_NAME=" "$ENV_FILE" | cut -d'=' -f2 | tr -d ' "' || echo "")
-    EMAIL=$(grep -E "^MAIL_USER=" "$ENV_FILE" | cut -d'=' -f2 | tr -d ' "' || echo "")
-else
-    DOMAIN=""
-    EMAIL=""
-fi
 
-DOMAIN="${DOMAIN:-api.gitrabbit.co}"
-EMAIL="${EMAIL:-admin@gitrabbit.co}"
+# Safe environment variable reader (pure text parsing, prevents shell execution & injection)
+get_env_val() {
+    local key="$1"
+    local file="${2:-$ENV_FILE}"
+    local default_val="${3:-}"
+
+    if [[ ! -f "$file" ]]; then
+        printf '%s' "$default_val"
+        return
+    fi
+
+    local val
+    val=$(awk -v target="$key" '
+        BEGIN { found = "" }
+        {
+            line = $0
+            sub(/^[[:space:]]*export[[:space:]]+/, "", line)
+            sub(/^[[:space:]]+/, "", line)
+            if (line ~ /^#/ || line ~ /^[[:space:]]*$/) next
+            eq_idx = index(line, "=")
+            if (eq_idx > 0) {
+                k = substr(line, 1, eq_idx - 1)
+                sub(/[[:space:]]+$/, "", k)
+                if (k == target) {
+                    v = substr(line, eq_idx + 1)
+                    sub(/^[[:space:]]+/, "", v)
+                    if ((v ~ /^".*"$/ && length(v) >= 2) || (v ~ /^\x27.*\x27$/ && length(v) >= 2)) {
+                        v = substr(v, 2, length(v) - 2)
+                    } else {
+                        sub(/[[:space:]]+$/, "", v)
+                    }
+                    found = v
+                }
+            }
+        }
+        END { printf "%s", found }
+    ' "$file")
+
+    if [[ -z "$val" ]]; then
+        printf '%s' "$default_val"
+    else
+        printf '%s' "$val"
+    fi
+}
+
+DOMAIN=$(get_env_val "DOMAIN_NAME" "$ENV_FILE" "api.gitrabbit.co")
+EMAIL=$(get_env_val "MAIL_USER" "$ENV_FILE" "admin@gitrabbit.co")
 STAGING=0 # Set to 1 for testing with Let's Encrypt staging environment
 
 echo "=========================================================="

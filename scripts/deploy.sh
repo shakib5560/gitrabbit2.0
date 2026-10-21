@@ -49,6 +49,51 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
     exit 1
 fi
 
+# Safe environment variable reader (pure text parsing, prevents shell execution & injection)
+get_env_val() {
+    local key="$1"
+    local file="${2:-$ENV_FILE}"
+    local default_val="${3:-}"
+
+    if [[ ! -f "$file" ]]; then
+        printf '%s' "$default_val"
+        return
+    fi
+
+    local val
+    val=$(awk -v target="$key" '
+        BEGIN { found = "" }
+        {
+            line = $0
+            sub(/^[[:space:]]*export[[:space:]]+/, "", line)
+            sub(/^[[:space:]]+/, "", line)
+            if (line ~ /^#/ || line ~ /^[[:space:]]*$/) next
+            eq_idx = index(line, "=")
+            if (eq_idx > 0) {
+                k = substr(line, 1, eq_idx - 1)
+                sub(/[[:space:]]+$/, "", k)
+                if (k == target) {
+                    v = substr(line, eq_idx + 1)
+                    sub(/^[[:space:]]+/, "", v)
+                    if ((v ~ /^".*"$/ && length(v) >= 2) || (v ~ /^\x27.*\x27$/ && length(v) >= 2)) {
+                        v = substr(v, 2, length(v) - 2)
+                    } else {
+                        sub(/[[:space:]]+$/, "", v)
+                    }
+                    found = v
+                }
+            }
+        }
+        END { printf "%s", found }
+    ' "$file")
+
+    if [[ -z "$val" ]]; then
+        printf '%s' "$default_val"
+    else
+        printf '%s' "$val"
+    fi
+}
+
 if [[ ! -f "$ENV_FILE" ]]; then
     if [[ -f ".env" ]]; then
         log_warn "Target $ENV_FILE not found, falling back to .env"
@@ -59,11 +104,16 @@ if [[ ! -f "$ENV_FILE" ]]; then
     fi
 fi
 
-if [[ -f "$ENV_FILE" ]]; then
-    set -a
-    # shellcheck disable=SC1090
-    . "$ENV_FILE"
-    set +a
+# Ensure safe file permissions (0600)
+chmod 600 "$ENV_FILE" 2>/dev/null || true
+
+# Audit and safely normalize environment file if validate_env.py is available
+if command -v python3 &> /dev/null && [[ -f "$SCRIPT_DIR/validate_env.py" ]]; then
+    log_info "Auditing environment file syntax with validate_env.py..."
+    if ! python3 "$SCRIPT_DIR/validate_env.py" "$ENV_FILE" --fix; then
+        log_error "Environment file validation failed. Aborting deployment."
+        exit 1
+    fi
 fi
 
 # Disk space check
@@ -100,9 +150,21 @@ capture_db_snapshot() {
     fi
 }
 
-capture_db_snapshot "auth-db" "${AUTH_DB_USER:-postgres}" "${AUTH_DB_NAME:-auth_db}" "${AUTH_DB_PASSWORD:-}"
-capture_db_snapshot "ai-db" "${AI_DB_USER:-postgres}" "${AI_DB_NAME:-ai_db}" "${AI_DB_PASSWORD:-}"
-capture_db_snapshot "blog-postgres" "${BLOG_DB_USER:-postgres}" "${BLOG_DB_NAME:-blog_db}" "${BLOG_DB_PASSWORD:-}"
+AUTH_DB_USER=$(get_env_val "AUTH_DB_USER" "$ENV_FILE" "${AUTH_DB_USER:-postgres}")
+AUTH_DB_NAME=$(get_env_val "AUTH_DB_NAME" "$ENV_FILE" "${AUTH_DB_NAME:-auth_db}")
+AUTH_DB_PASSWORD=$(get_env_val "AUTH_DB_PASSWORD" "$ENV_FILE" "${AUTH_DB_PASSWORD:-}")
+
+AI_DB_USER=$(get_env_val "AI_DB_USER" "$ENV_FILE" "${AI_DB_USER:-postgres}")
+AI_DB_NAME=$(get_env_val "AI_DB_NAME" "$ENV_FILE" "${AI_DB_NAME:-ai_db}")
+AI_DB_PASSWORD=$(get_env_val "AI_DB_PASSWORD" "$ENV_FILE" "${AI_DB_PASSWORD:-}")
+
+BLOG_DB_USER=$(get_env_val "BLOG_DB_USER" "$ENV_FILE" "${BLOG_DB_USER:-postgres}")
+BLOG_DB_NAME=$(get_env_val "BLOG_DB_NAME" "$ENV_FILE" "${BLOG_DB_NAME:-blog_db}")
+BLOG_DB_PASSWORD=$(get_env_val "BLOG_DB_PASSWORD" "$ENV_FILE" "${BLOG_DB_PASSWORD:-}")
+
+capture_db_snapshot "auth-db" "$AUTH_DB_USER" "$AUTH_DB_NAME" "$AUTH_DB_PASSWORD"
+capture_db_snapshot "ai-db" "$AI_DB_USER" "$AI_DB_NAME" "$AI_DB_PASSWORD"
+capture_db_snapshot "blog-postgres" "$BLOG_DB_USER" "$BLOG_DB_NAME" "$BLOG_DB_PASSWORD"
 
 # 3. Snapshot Current Active Images for Rollback
 log_info "Step 3/8: Tagging current active images for potential rollback..."

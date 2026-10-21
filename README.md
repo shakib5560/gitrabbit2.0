@@ -765,6 +765,8 @@ In your GitHub repository settings (`Settings -> Secrets and variables -> Action
 | `EC2_HOST` | Public IP or DNS of your AWS EC2 instance |
 | `EC2_USER` | SSH user (`ubuntu` or your deploy user) |
 | `EC2_SSH_KEY` | Private SSH key (PEM) authorized on the EC2 host |
+| `PROD_ENV_FILE` | (Optional) Complete `.env.production` file content for automated deployment sync |
+| `MAIL_PASSWORD` | (Optional) Gmail App Password or SMTP password (passwords with spaces are safely handled) |
 | `JWT_SECRET` | Secret key used for CI test signing |
 | `JWT_ACCESS_SECRET` | Access token secret |
 | `JWT_REFRESH_SECRET` | Refresh token secret |
